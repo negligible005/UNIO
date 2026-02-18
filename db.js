@@ -23,17 +23,33 @@ const initDb = async () => {
       );
     `);
 
+    // Listings Table
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS listings (
+        id SERIAL PRIMARY KEY,
+        provider_id INTEGER REFERENCES users(id),
+        type VARCHAR(50) NOT NULL,
+        capacity VARCHAR(50) NOT NULL,
+        price_per_unit DECIMAL(10, 2) NOT NULL,
+        location TEXT,
+        date TEXT,
+        details JSONB,
+        password VARCHAR(255) NOT NULL,
+        role VARCHAR(50) DEFAULT 'consumer',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+
     // Bookings Table
     await pool.query(`
       CREATE TABLE IF NOT EXISTS bookings (
         id SERIAL PRIMARY KEY,
         user_id INTEGER REFERENCES users(id),
-        type VARCHAR(50) NOT NULL, -- 'cargo_split', 'cold_storage', 'cab'
-        pickup_address TEXT,
-        delivery_address TEXT,
+        listing_id INTEGER REFERENCES listings(id),
         status VARCHAR(50) DEFAULT 'pending',
-        details JSONB, -- Stores specific details like weight, temp, vehicle type
-        price DECIMAL(10, 2),
+        payment_status VARCHAR(50) DEFAULT 'unpaid',
+        quantity INTEGER DEFAULT 1,
+        total_price DECIMAL(10, 2),
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
     `);

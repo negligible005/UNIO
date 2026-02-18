@@ -1,3 +1,4 @@
+<!-- netstat -ano | findstr 5432 -->
 <!DOCTYPE html>
 <html lang="en">
 
@@ -105,13 +106,13 @@
 
       </nav>
 
-      <div class="flex items-center space-x-4">
+      <div class="flex items-center space-x-4" id="authSection">
         <button class="p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
           onclick="window.toggleTheme()">
           <span class="material-icons text-xl dark:hidden">dark_mode</span>
           <span class="material-icons text-xl hidden dark:block">light_mode</span>
         </button>
-        <a href="login.html">
+        <a href="login.html" id="loginBtn">
           <button
             class="px-6 py-2.5 rounded-full bg-navy-950 dark:bg-white dark:text-navy-950 text-white font-semibold hover:opacity-90 transition-opacity">
             Login / Sign Up
@@ -120,6 +121,26 @@
       </div>
     </div>
   </header>
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const user = JSON.parse(localStorage.getItem('user'));
+      if (user && user.name) {
+        const authSection = document.getElementById('authSection');
+        const loginBtn = document.getElementById('loginBtn');
+        if (loginBtn) loginBtn.remove();
+
+        const userDisplay = document.createElement('div');
+        userDisplay.className = 'flex items-center gap-3';
+        userDisplay.innerHTML = `
+                <span class="text-sm font-bold text-navy-950 dark:text-white">Hi, ${user.name}</span>
+                <div class="w-8 h-8 rounded-full bg-primary text-white flex items-center justify-center font-bold">
+                    ${user.name.charAt(0).toUpperCase()}
+                </div>
+            `;
+        authSection.appendChild(userDisplay);
+      }
+    });
+  </script>
   <main class="pt-20">
     <section class="min-h-[85vh] flex flex-col md:flex-row overflow-hidden">
       <div
@@ -324,7 +345,7 @@
         <a class="hover:text-primary transition-colors" href="#">Contact</a>
         <a class="hover:text-primary transition-colors" href="#">Blog</a>
       </div>
-      <p class="text-slate-400 text-sm">© 2023 UNIO Technologies. All rights reserved.</p>
+      <p class="text-slate-400 text-sm">© 2026 UNIO Technologies. All rights reserved.</p>
     </div>
   </footer>
 

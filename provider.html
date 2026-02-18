@@ -72,16 +72,69 @@
         </button>
         <div class="flex items-center gap-3 pl-4 border-l border-slate-200 dark:border-slate-800">
           <div class="text-right hidden sm:block">
-            <p class="text-xs font-semibold">Alpha Logistics</p>
+            <p class="text-xs font-semibold" id="providerName">Alpha Logistics</p>
             <p class="text-[10px] text-slate-500">Provider Account</p>
           </div>
-          <div class="w-10 h-10 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center">
-            <span class="material-icons text-slate-500">business</span>
+
+          <div class="relative">
+            <button onclick="toggleProviderMenu()"
+              class="w-10 h-10 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 dark:focus:ring-offset-slate-900">
+              <span class="material-icons text-slate-500">business</span>
+            </button>
+
+            <!-- Dropdown Menu -->
+            <div id="providerMenu"
+              class="hidden absolute right-0 mt-2 w-48 bg-white dark:bg-slate-800 rounded-xl shadow-lg py-1 border border-slate-100 dark:border-slate-700 z-50 transform origin-top-right transition-all duration-200 ease-out">
+              <div class="px-4 py-3 border-b border-slate-100 dark:border-slate-700 sm:hidden">
+                <p class="text-sm font-bold text-slate-900 dark:text-white" id="mobileProviderName">Provider</p>
+              </div>
+              <a href="#"
+                class="block px-4 py-2 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700">Account
+                Settings</a>
+              <button onclick="handleLogout()"
+                class="w-full text-left block px-4 py-2 text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20">
+                Logout
+              </button>
+            </div>
           </div>
         </div>
       </div>
     </div>
   </nav>
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const user = JSON.parse(localStorage.getItem('user'));
+      if (user && user.name) {
+        const providerNameEl = document.getElementById('providerName');
+        const mobileProviderNameEl = document.getElementById('mobileProviderName');
+        if (providerNameEl) providerNameEl.innerText = user.name;
+        if (mobileProviderNameEl) mobileProviderNameEl.innerText = user.name;
+      }
+    });
+
+    function toggleProviderMenu() {
+      const menu = document.getElementById('providerMenu');
+      menu.classList.toggle('hidden');
+    }
+
+    // Close menu when clicking outside
+    document.addEventListener('click', (e) => {
+      const menu = document.getElementById('providerMenu');
+      const button = document.querySelector('button[onclick="toggleProviderMenu()"]');
+
+      if (menu && !menu.contains(e.target) && button && !button.contains(e.target)) {
+        menu.classList.add('hidden');
+      }
+    });
+
+    function handleLogout() {
+      if (confirm('Are you sure you want to logout?')) {
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        window.location.href = 'index.html';
+      }
+    }
+  </script>
   <main class="max-w-7xl mx-auto p-6 md:p-8">
     <div class="mb-8 flex flex-col md:flex-row md:items-end justify-between gap-4">
       <div>
@@ -128,7 +181,7 @@
           <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
             integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 
-          <div id="providerMap" class="h-32 bg-slate-100 dark:bg-slate-800 rounded-lg w-full z-0 relative"></div>
+          <div id="providerMap" class="h-96 bg-slate-100 dark:bg-slate-800 rounded-lg w-full z-0 relative"></div>
 
           <script>
             document.addEventListener('DOMContentLoaded', () => {
@@ -162,7 +215,7 @@
               <span class="text-slate-400 text-[10px] uppercase tracking-wider font-bold px-3 py-1">Global</span>
             </div>
           </div>
-          <div class="p-6 space-y-4">
+          <div id="listingsContainer" class="p-6 space-y-4">
             <div
               class="flex items-center justify-between p-4 rounded-xl border border-slate-50 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50">
               <div class="flex items-center gap-4">
@@ -232,32 +285,46 @@
         <div
           class="bg-card-light dark:bg-card-dark p-6 rounded-xl border border-slate-100 dark:border-slate-800 shadow-sm">
           <h3 class="font-bold text-slate-900 dark:text-white mb-6">List New Space</h3>
-          <form class="space-y-4">
+          <form class="space-y-4" id="publishForm">
             <div>
               <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Resource Type</label>
-              <select
+              <select id="listingType"
                 class="w-full bg-slate-50 dark:bg-slate-900/50 border-slate-200 dark:border-slate-800 rounded-xl text-sm focus:ring-primary focus:border-primary py-3">
-                <option>Truck Freight Space</option>
-                <option>Cold Storage Pallet</option>
-                <option>Warehouse Shared Space</option>
+                <option value="cargo_split">Truck Freight Space</option>
+                <option value="cold_storage">Cold Storage Pallet</option>
+                <option value="warehouse">Warehouse Shared Space</option>
               </select>
             </div>
             <div class="grid grid-cols-2 gap-4">
               <div>
                 <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Capacity</label>
-                <input
+                <input id="listingCapacity"
                   class="w-full bg-slate-50 dark:bg-slate-900/50 border-slate-200 dark:border-slate-800 rounded-xl text-sm focus:ring-primary focus:border-primary py-3"
-                  placeholder="e.g. 200kg" type="text" />
+                  placeholder="e.g. 500kg or 12 slots" type="text" />
               </div>
               <div>
                 <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Price per
                   Unit</label>
-                <input
+                <input id="listingPrice"
                   class="w-full bg-slate-50 dark:bg-slate-900/50 border-slate-200 dark:border-slate-800 rounded-xl text-sm focus:ring-primary focus:border-primary py-3"
-                  placeholder="$0.00" type="text" />
+                  placeholder="0.00" type="number" />
               </div>
             </div>
-            <button
+            <div>
+              <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Location /
+                Route</label>
+              <input id="listingLocation"
+                class="w-full bg-slate-50 dark:bg-slate-900/50 border-slate-200 dark:border-slate-800 rounded-xl text-sm focus:ring-primary focus:border-primary py-3"
+                placeholder="e.g. Bangalore -> Cochin" type="text" />
+            </div>
+            <div>
+              <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Availability
+                Date</label>
+              <input id="listingDate"
+                class="w-full bg-slate-50 dark:bg-slate-900/50 border-slate-200 dark:border-slate-800 rounded-xl text-sm focus:ring-primary focus:border-primary py-3"
+                placeholder="e.g. Jan 20th" type="text" />
+            </div>
+            <button onclick="publishListing()"
               class="w-full py-3 bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-xl font-bold hover:opacity-90 transition-opacity"
               type="button">
               Publish Listing
@@ -267,9 +334,117 @@
       </div>
     </div>
   </main>
+
+  <script>
+    const API_URL = 'http://localhost:3000/api';
+
+    async function publishListing() {
+      const type = document.getElementById('listingType').value;
+      const capacity = document.getElementById('listingCapacity').value;
+      const price = document.getElementById('listingPrice').value;
+      const location = document.getElementById('listingLocation').value;
+      const date = document.getElementById('listingDate').value;
+
+      const token = localStorage.getItem('token');
+      if (!token) {
+        alert("Please login first");
+        return;
+      }
+
+      try {
+        const res = await fetch(`${API_URL}/listings`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({
+            type,
+            capacity,
+            price_per_unit: price,
+            location,
+            date,
+            details: {}
+          })
+        });
+
+        if (res.ok) {
+          alert('Listing submitted! It is now pending admin approval.');
+          fetchListings(); // Refresh list
+          document.getElementById('publishForm').reset();
+        } else {
+          const err = await res.json();
+          alert('Failed to publish listing: ' + (err.message || 'Unknown error'));
+        }
+      } catch (err) {
+        console.error(err);
+        alert('Error publishing listing: ' + err.message);
+      }
+    }
+
+    async function fetchListings() {
+      try {
+        const token = localStorage.getItem('token');
+        if (!token) return;
+
+        const res = await fetch(`${API_URL}/listings/my`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const listings = await res.json();
+
+        const listContainer = document.getElementById('listingsContainer');
+
+        if (!listContainer) {
+          console.error("Listings container not found!");
+          return;
+        }
+
+        if (listings.length === 0) {
+          listContainer.innerHTML = '<p class="text-center text-slate-400 py-4">No listings yet.</p>';
+          return;
+        }
+
+        listContainer.innerHTML = '';
+
+        listings.forEach(listing => {
+          const statusBadge = listing.approved
+            ? '<span class="text-[10px] bg-emerald-100 text-emerald-600 px-2 py-1 rounded-full font-bold">Active</span>'
+            : '<span class="text-[10px] bg-amber-100 text-amber-600 px-2 py-1 rounded-full font-bold">Pending Approval</span>';
+
+          const html = `
+                    <div class="flex items-center justify-between p-4 rounded-xl border border-slate-50 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50">
+                      <div class="flex items-center gap-4">
+                        <div class="w-12 h-12 rounded-lg bg-blue-100 dark:bg-blue-900/40 flex items-center justify-center">
+                          <span class="material-icons text-blue-600 dark:text-blue-400">local_shipping</span>
+                        </div>
+                        <div>
+                          <div class="flex items-center gap-2">
+                              <h4 class="font-semibold text-slate-900 dark:text-white capitalize">${listing.type.replace('_', ' ')}</h4>
+                              ${statusBadge}
+                          </div>
+                          <p class="text-xs text-slate-500">${listing.location || 'Location N/A'} • ${listing.date || 'Date N/A'}</p>
+                        </div>
+                      </div>
+                      <div class="text-right">
+                        <p class="text-sm font-bold text-green-600 dark:text-green-400">${listing.capacity}</p>
+                        <p class="text-xs text-slate-400">$${listing.price_per_unit}/unit</p>
+                      </div>
+                    </div>
+                 `;
+          listContainer.insertAdjacentHTML('beforeend', html);
+        });
+
+      } catch (err) {
+        console.error(err);
+      }
+    }
+
+    // Load listings on start
+    document.addEventListener('DOMContentLoaded', fetchListings);
+  </script>
   <footer
     class="max-w-7xl mx-auto p-8 flex flex-col md:flex-row justify-between items-center gap-4 text-slate-400 text-xs">
-    <p>© 2024 Unio Universal Splitting. All rights reserved.</p>
+    <p>© 2026 Unio Universal Splitting. All rights reserved.</p>
     <div class="flex gap-6">
       <a class="hover:text-primary transition-colors" href="#">Privacy Policy</a>
       <a class="hover:text-primary transition-colors" href="#">Terms of Service</a>

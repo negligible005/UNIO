@@ -15,6 +15,9 @@ app.use(express.static(path.join(__dirname, '/'))); // Serve static files from c
 // Routes (to be added)
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/bookings', require('./routes/bookings'));
+app.use('/api/listings', require('./routes/listings'));
+app.use('/api/feedback', require('./routes/feedback'));
+app.use('/api/admin', require('./routes/admin'));
 
 // Initialize DB and Start Server
 initDb().then(() => {
