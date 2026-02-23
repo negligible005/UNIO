@@ -37,6 +37,7 @@
       },
     };
   </script>
+  <script src="js/auth.js"></script>
   <script src="js/theme.js"></script>
   <style>
     body {
@@ -130,16 +131,35 @@
         if (loginBtn) loginBtn.remove();
 
         const userDisplay = document.createElement('div');
-        userDisplay.className = 'flex items-center gap-3';
+        userDisplay.className = 'relative group cursor-pointer';
         userDisplay.innerHTML = `
+            <div class="flex items-center gap-3">
                 <span class="text-sm font-bold text-navy-950 dark:text-white">Hi, ${user.name}</span>
                 <div class="w-8 h-8 rounded-full bg-primary text-white flex items-center justify-center font-bold">
                     ${user.name.charAt(0).toUpperCase()}
                 </div>
-            `;
+            </div>
+            
+            <div class="absolute right-0 top-full mt-2 w-48 bg-white dark:bg-navy-950 rounded-xl shadow-lg border border-slate-200 dark:border-slate-800 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50">
+                <div class="p-2">
+                    <button onclick="handleIndexLogout()" class="w-full text-left px-4 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-lg font-medium transition-colors flex items-center gap-2">
+                        <span class="material-icons text-sm">logout</span>
+                        Sign Out
+                    </button>
+                </div>
+            </div>
+        `;
         authSection.appendChild(userDisplay);
       }
     });
+
+    window.handleIndexLogout = function () {
+      if (confirm('Are you sure you want to sign out?')) {
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        window.location.reload();
+      }
+    };
   </script>
   <main class="pt-20">
     <section class="min-h-[85vh] flex flex-col md:flex-row overflow-hidden">
@@ -189,7 +209,7 @@
           <div
             class="bg-white dark:bg-navy-950 p-8 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-800">
             <p class="text-slate-500 dark:text-slate-400 font-medium mb-2">Amount Earned</p>
-            <h4 class="text-3xl font-bold mb-2">$12,450.00</h4>
+            <h4 class="text-3xl font-bold mb-2">₹12,450.00</h4>
             <div class="flex items-center text-emerald-500 text-sm font-semibold">
               <span class="material-icons text-sm mr-1">trending_up</span>
               +12.5% this month
@@ -198,7 +218,7 @@
           <div
             class="bg-white dark:bg-navy-950 p-8 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-800">
             <p class="text-slate-500 dark:text-slate-400 font-medium mb-2">Amount Saved</p>
-            <h4 class="text-3xl font-bold mb-2">$3,120.45</h4>
+            <h4 class="text-3xl font-bold mb-2">₹3,120.45</h4>
             <div class="w-full bg-slate-100 dark:bg-slate-800 h-2 rounded-full mt-4">
               <div class="bg-primary h-full rounded-full w-[65%]"></div>
             </div>

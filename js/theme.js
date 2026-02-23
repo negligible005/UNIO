@@ -31,3 +31,5 @@ window.toggleTheme = function () {
     window.localStorage.setItem('theme', theme);
     document.dispatchEvent(new Event('themeChanged'));
 };
+
+

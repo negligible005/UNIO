@@ -1,0 +1,17 @@
+[
+  {
+    "listing_id": 6,
+    "base_cost": "0.00",
+    "total_revenue": "5.00"
+  },
+  {
+    "listing_id": 7,
+    "base_cost": "60.00",
+    "total_revenue": "15.00"
+  },
+  {
+    "listing_id": 8,
+    "base_cost": "60.00",
+    "total_revenue": "0"
+  }
+]

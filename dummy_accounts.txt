@@ -1,0 +1,28 @@
+🔐 UNIO DUMMY ACCOUNTS
+=====================
+
+Name: John Logistics
+Email: john@provider.com
+Password: password123
+Role: provider
+---------------------
+Name: Global Warehousing
+Email: global@provider.com
+Password: password123
+Role: provider
+---------------------
+Name: Alice Exporter
+Email: alice@consumer.com
+Password: password123
+Role: consumer
+---------------------
+Name: Bob Trader
+Email: bob@consumer.com
+Password: password123
+Role: consumer
+---------------------
+Name: Charlie Import
+Email: charlie@consumer.com
+Password: password123
+Role: consumer
+---------------------

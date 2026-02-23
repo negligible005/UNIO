@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html class="light" lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+    <title>Unio | Community & Trust</title>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap"
+        rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&amp;display=swap"
+        rel="stylesheet" />
+    <script src="https://cdn.tailwindcss.com?plugins=forms,typography"></script>
+    <script>
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        primary: "#3B82F6",
+                        "background-light": "#F8FAFC",
+                        "background-dark": "#0F172A",
+                        secondary: "#1E293B",
+                    }
+                }
+            }
+        };
+    </script>
+    <script src="js/auth.js"></script>
+    <script src="js/theme.js"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+
+        .card-shadow {
+            box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.05);
+        }
+    </style>
+</head>
+
+<body class="bg-background-light dark:bg-background-dark text-slate-900 dark:text-slate-100 min-h-screen">
+    <nav
+        class="sticky top-0 z-50 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-b border-slate-200 dark:border-slate-800">
+        <div class="max-w-[1440px] mx-auto px-6 h-20 flex items-center justify-between">
+            <a href="index.html" class="flex items-center gap-3 hover:opacity-80 transition-opacity">
+                <div class="w-12 h-12 rounded-xl overflow-hidden">
+                    <video src="yo.mp4" autoplay muted loop playsinline class="w-full h-full object-cover"></video>
+                </div>
+                <span class="text-xl font-bold tracking-tight text-[#111418] dark:text-white">UNIO</span>
+            </a>
+            <div class="hidden md:flex items-center gap-8">
+                <a class="text-sm font-medium hover:text-primary transition-colors text-slate-500"
+                    href="consumer.html">Dashboard</a>
+                <a class="text-sm font-medium hover:text-primary transition-colors text-slate-500"
+                    href="marketplace.html">Marketplace</a>
+                <a class="text-sm font-medium hover:text-primary transition-colors text-primary"
+                    href="community.html">Community</a>
+            </div>
+            <div class="flex items-center gap-4">
+                <button class="p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                    onclick="window.toggleTheme()">
+                    <span class="material-symbols-outlined text-xl">dark_mode</span>
+                </button>
+                <div
+                    class="w-10 h-10 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center overflow-hidden border-2 border-white dark:border-slate-800">
+                    <img id="navProfilePic"
+                        src="https://lh3.googleusercontent.com/aida-public/AB6AXuDnBvpQdqT4GD5hS4Jfb2tGblO8LmQcu4Fxk-qu4_ucyn-9qeZ-jkfdAzNClscXbEp79FJpHf1yp_-Vz7yhft-GCO8VPnfpSKpDIaIUCVyXbMov09fhqvqCOmQCsC-dCSsNlqIYXE3hlk41C0NG7_lj6iH9NS6dsTwheA0e0k13eGbh94OLNcual-iPzZ3Mf20J90TgTQGBY4q-ejKXeh5BY-7BmvU-XLeAuMyPxSSi-hmIAOGIhHzZr9beeKOV00v3PzgueNj_fpWm" />
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <main class="max-w-7xl mx-auto p-6 lg:p-12 grid grid-cols-1 lg:grid-cols-12 gap-8">
+        <!-- Friends Section -->
+        <div class="lg:col-span-8 space-y-8">
+            <div>
+                <h1 class="text-4xl font-black text-slate-900 dark:text-white">Your Circle</h1>
+                <p class="text-slate-500 dark:text-slate-400 mt-2">People you've built trust with.</p>
+            </div>
+
+            <div id="friendsList" class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <!-- Loading State -->
+                <div class="col-span-full py-20 text-center">
+                    <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
+                </div>
+            </div>
+
+            <!-- Recommendations -->
+            <div class="pt-8 border-t border-slate-200 dark:border-slate-800">
+                <h2 class="text-2xl font-bold text-slate-900 dark:text-white">Suggested Friends</h2>
+                <p class="text-sm text-slate-500 dark:text-slate-400 mb-6">People you've successfully split with
+                    recently.</p>
+                <div id="recommendationsList" class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <!-- Suggestions -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Sidebar / Global Trust -->
+        <div class="lg:col-span-4 space-y-6">
+            <div
+                class="bg-white dark:bg-slate-800 p-6 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-xl">
+                <h3 class="font-bold text-xl mb-4">Trust Ecosystem</h3>
+                <div class="space-y-4">
+                    <div
+                        class="p-4 rounded-xl bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800">
+                        <div class="flex items-center gap-3 mb-2">
+                            <span class="material-icons text-blue-600">verified</span>
+                            <span class="font-bold text-sm">Genuineness Score</span>
+                        </div>
+                        <p class="text-xs text-slate-600 dark:text-slate-400">Collaborate with high-score users for
+                            safer and smoother splits.</p>
+                    </div>
+                </div>
+            </div>
+
+            <div
+                class="bg-white dark:bg-slate-800 p-6 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-xl">
+                <h3 class="font-bold text-lg mb-4">Friend Requests</h3>
+                <div id="pendingRequests" class="space-y-3">
+                    <p class="text-xs text-slate-500">No pending requests at the moment.</p>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        const API_URL = 'http://localhost:3000/api';
+        const token = localStorage.getItem('token');
+
+        async function fetchFriends() {
+            try {
+                const res = await fetch(`${API_URL}/friends/my-friends`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const friends = await res.json();
+                const container = document.getElementById('friendsList');
+
+                if (friends.length === 0) {
+                    container.innerHTML = '<div class="col-span-full py-12 text-center text-slate-500 bg-slate-50 dark:bg-slate-900/30 rounded-2xl border-2 border-dashed border-slate-200 dark:border-slate-800">You haven\'t added any friends yet.</div>';
+                    return;
+                }
+
+                container.innerHTML = '';
+                friends.forEach(f => {
+                    const html = `
+                        <div class="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-100 dark:border-slate-800 hover:shadow-lg transition-all">
+                            <div class="flex items-center justify-between mb-4">
+                                <div class="w-12 h-12 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center font-bold text-primary">
+                                    ${f.name.charAt(0)}
+                                </div>
+                                <div class="text-right">
+                                    <div class="flex items-center gap-1 text-emerald-500">
+                                        <span class="material-icons text-sm">star</span>
+                                        <span class="text-sm font-black">${parseFloat(f.trust_score).toFixed(1)}</span>
+                                    </div>
+                                    <p class="text-[10px] text-slate-500">Trust Score</p>
+                                </div>
+                            </div>
+                            <h4 class="font-bold text-slate-900 dark:text-white">${f.name}</h4>
+                            <p class="text-xs text-slate-500 mb-4">${f.email}</p>
+                            <button onclick="openRateModal(${f.id}, '${f.name}')" class="w-full py-2 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-[10px] font-bold rounded-lg hover:bg-primary hover:text-white transition-all">
+                                RATE GENUINENESS
+                            </button>
+                        </div>
+                    `;
+                    container.insertAdjacentHTML('beforeend', html);
+                });
+            } catch (err) { console.error(err); }
+        }
+
+        async function fetchRecommendations() {
+            try {
+                const res = await fetch(`${API_URL}/friends/recommendations`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const users = await res.json();
+                const container = document.getElementById('recommendationsList');
+
+                if (users.length === 0) {
+                    container.innerHTML = '<p class="text-slate-500 text-sm">No recent split partners found.</p>';
+                    return;
+                }
+
+                container.innerHTML = '';
+                users.forEach(u => {
+                    const html = `
+                        <div class="flex items-center justify-between p-4 bg-white dark:bg-slate-900/50 rounded-xl border border-slate-100 dark:border-slate-800">
+                            <div class="flex items-center gap-3">
+                                <div class="w-8 h-8 rounded-full bg-primary/20 text-primary flex items-center justify-center text-xs font-bold">
+                                    ${u.name.charAt(0)}
+                                </div>
+                                <div>
+                                    <h5 class="text-sm font-bold text-slate-900 dark:text-white">${u.name}</h5>
+                                    <p class="text-[10px] text-slate-500 italic">Past Split Partner</p>
+                                </div>
+                            </div>
+                            <button onclick="sendFriendRequest(${u.id})" class="p-2 rounded-lg bg-primary/10 text-primary hover:bg-primary hover:text-white transition-colors">
+                                <span class="material-icons text-lg">person_add</span>
+                            </button>
+                        </div>
+                    `;
+                    container.insertAdjacentHTML('beforeend', html);
+                });
+            } catch (err) { console.error(err); }
+        }
+
+        async function sendFriendRequest(friendId) {
+            try {
+                const res = await fetch(`${API_URL}/friends/request`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                    body: JSON.stringify({ friendId })
+                });
+                if (res.ok) {
+                    alert("Friend request sent!");
+                    fetchRecommendations();
+                }
+            } catch (err) { console.error(err); }
+        }
+
+        async function fetchRequests() {
+            try {
+                const res = await fetch(`${API_URL}/notifications`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const notifs = await res.json();
+                const container = document.getElementById('pendingRequests');
+                const reqs = notifs.filter(n => n.type === 'friend_request');
+
+                if (reqs.length === 0) return;
+
+                container.innerHTML = '';
+                reqs.forEach(r => {
+                    const requesterId = r.content.match(/\d+$/)[0];
+                    const html = `
+                        <div class="p-3 bg-slate-50 dark:bg-slate-900/50 rounded-xl border border-slate-100 dark:border-slate-800">
+                            <p class="text-[10px] text-slate-500 mb-2">${r.content}</p>
+                            <div class="flex gap-2">
+                                <button onclick="acceptRequest(${requesterId}, ${r.id})" class="flex-1 py-1.5 bg-primary text-white text-[10px] font-bold rounded-lg">Accept</button>
+                                <button onclick="markRead(${r.id})" class="flex-1 py-1.5 bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 text-[10px] font-bold rounded-lg">Dismiss</button>
+                            </div>
+                        </div>
+                    `;
+                    container.insertAdjacentHTML('beforeend', html);
+                });
+            } catch (err) { console.error(err); }
+        }
+
+        async function acceptRequest(requesterId, notifId) {
+            try {
+                const res = await fetch(`${API_URL}/friends/accept`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                    body: JSON.stringify({ requesterId })
+                });
+                if (res.ok) {
+                    await markRead(notifId);
+                    alert("Request accepted!");
+                    fetchFriends();
+                    fetchRequests();
+                }
+            } catch (err) { console.error(err); }
+        }
+
+        async function markRead(id) {
+            await fetch(`${API_URL}/notifications/${id}/read`, {
+                method: 'PUT',
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            fetchRequests();
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            fetchFriends();
+            fetchRecommendations();
+            fetchRequests();
+        });
+    </script>
+</body>
+
+</html>

@@ -40,6 +40,11 @@ const initDb = async () => {
       );
     `);
 
+    // Add base_cost column without dropping existing data
+    await pool.query(`
+      ALTER TABLE listings ADD COLUMN IF NOT EXISTS base_cost DECIMAL(10, 2) DEFAULT 0.00;
+    `);
+
     // Bookings Table
     await pool.query(`
       CREATE TABLE IF NOT EXISTS bookings (
@@ -63,6 +68,19 @@ const initDb = async () => {
         rating INTEGER CHECK (rating >= 1 AND rating <= 5),
         comment TEXT,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+
+    // Tracking Updates Table
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS tracking_updates (
+        id SERIAL PRIMARY KEY,
+        listing_id INTEGER REFERENCES listings(id) ON DELETE CASCADE,
+        location_name VARCHAR(255) NOT NULL,
+        lat DECIMAL(10, 6) NOT NULL,
+        lng DECIMAL(10, 6) NOT NULL,
+        is_confirmed BOOLEAN DEFAULT FALSE,
+        reported_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
     `);
 

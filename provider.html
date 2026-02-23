@@ -32,6 +32,7 @@
       },
     };
   </script>
+  <script src="js/auth.js"></script>
   <script src="js/theme.js"></script>
   <style>
     body {
@@ -153,15 +154,15 @@
     <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
       <div class="lg:col-span-7 grid grid-cols-1 sm:grid-cols-2 gap-6">
         <div
-          class="bg-card-light dark:bg-card-dark p-6 rounded-xl border border-slate-100 dark:border-slate-800 shadow-sm">
-          <div class="flex justify-between items-start mb-4">
-            <p class="text-sm font-medium text-slate-500 dark:text-slate-400">Amount Earned</p>
-            <span
-              class="bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400 text-xs font-bold px-2.5 py-1 rounded-full">+
-              12.5%</span>
+          class="bg-card-light dark:bg-card-dark p-6 rounded-xl border border-slate-100 dark:border-slate-800 shadow-sm relative overflow-hidden group">
+          <div class="absolute right-0 top-0 w-24 h-24 bg-primary/5 rounded-bl-[100px]-full"></div>
+          <p class="text-slate-500 dark:text-slate-400 font-medium mb-1 relative z-10">Amount Earned</p>
+          <h4 class="text-4xl font-black text-slate-900 dark:text-white mb-2 relative z-10" id="providerAmountEarned">
+            ₹0.00</h4>
+          <div class="flex items-center text-primary text-sm font-bold relative z-10">
+            <span class="material-icons text-sm mr-1">trending_up</span>
+            Smart earnings
           </div>
-          <h2 class="text-4xl font-bold text-slate-900 dark:text-white mb-2">$12,450.00</h2>
-          <p class="text-xs text-slate-400">vs. last month</p>
         </div>
         <div
           class="bg-card-light dark:bg-card-dark p-6 rounded-xl border border-slate-100 dark:border-slate-800 shadow-sm relative overflow-hidden group">
@@ -253,33 +254,32 @@
       </div>
       <div class="lg:col-span-5 space-y-6">
         <div
-          class="bg-card-light dark:bg-card-dark p-6 rounded-xl border border-slate-100 dark:border-slate-800 shadow-sm">
-          <div class="flex justify-between items-center mb-8">
+          class="bg-card-light dark:bg-card-dark p-6 rounded-xl border border-slate-100 dark:border-slate-800 shadow-sm flex flex-col min-h-[400px]">
+          <div class="flex justify-between items-center mb-6">
             <div>
-              <h3 class="font-bold text-slate-900 dark:text-white leading-none">Trending</h3>
-              <span class="text-[10px] text-red-500 font-bold uppercase tracking-widest mt-1 inline-block">● Live</span>
+              <h3 class="font-bold text-slate-900 dark:text-white leading-none">Earnings History</h3>
+              <p class="text-xs text-slate-500 mt-1">Confirmed bookings across all your assets</p>
             </div>
-            <span class="material-icons text-slate-400 cursor-pointer">more_horiz</span>
+            <span class="material-icons text-slate-400 cursor-pointer">history</span>
           </div>
-          <div class="flex items-end justify-between h-40 gap-2 mb-8 px-2">
-            <div class="chart-bar w-full bg-blue-100 dark:bg-blue-900/20 rounded-t-lg" style="height: 40%"></div>
-            <div class="chart-bar w-full bg-blue-100 dark:bg-blue-900/20 rounded-t-lg" style="height: 60%"></div>
-            <div class="chart-bar w-full bg-blue-100 dark:bg-blue-900/20 rounded-t-lg" style="height: 45%"></div>
-            <div class="chart-bar w-full bg-primary rounded-t-lg shadow-lg shadow-primary/30" style="height: 85%"></div>
-            <div class="chart-bar w-full bg-blue-100 dark:bg-blue-900/20 rounded-t-lg" style="height: 70%"></div>
-            <div class="chart-bar w-full bg-blue-100 dark:bg-blue-900/20 rounded-t-lg" style="height: 35%"></div>
-            <div class="chart-bar w-full bg-blue-100 dark:bg-blue-900/20 rounded-t-lg" style="height: 55%"></div>
+
+          <div class="overflow-y-auto pr-2 flex-grow" id="earningsHistoryContainer">
+            <div class="text-center py-12 text-slate-500 text-sm">Loading history...</div>
           </div>
-          <div class="space-y-4">
-            <div class="flex justify-between items-center text-sm">
-              <span class="text-slate-500 dark:text-slate-400">Shared Services</span>
-              <span class="font-bold text-slate-900 dark:text-white">+ $450</span>
+        </div>
+
+        <!-- Cancellation Requests -->
+        <div
+          class="bg-card-light dark:bg-card-dark p-6 rounded-xl border border-slate-100 dark:border-slate-800 shadow-sm">
+          <div class="flex justify-between items-center mb-6">
+            <div>
+              <h3 class="font-bold text-slate-900 dark:text-white leading-none">Cancellation Requests</h3>
+              <p class="text-xs text-slate-500 mt-1">Pending consumer requests</p>
             </div>
-            <div class="h-px bg-slate-100 dark:bg-slate-800"></div>
-            <div class="flex justify-between items-center text-sm">
-              <span class="text-slate-500 dark:text-slate-400">Digital Assets</span>
-              <span class="font-bold text-slate-900 dark:text-white">+ $1,200</span>
-            </div>
+            <span class="material-icons text-amber-500">pending_actions</span>
+          </div>
+          <div id="cancellationRequestsContainer" class="space-y-4">
+            <div class="text-center py-8 text-slate-500 text-sm">No pending requests.</div>
           </div>
         </div>
         <div
@@ -318,6 +318,13 @@
                 placeholder="e.g. Bangalore -> Cochin" type="text" />
             </div>
             <div>
+              <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Base Cost (e.g.
+                Petrol, Operations)</label>
+              <input id="listingBaseCost"
+                class="w-full bg-slate-50 dark:bg-slate-900/50 border-slate-200 dark:border-slate-800 rounded-xl text-sm focus:ring-primary focus:border-primary py-3"
+                placeholder="0.00" type="number" step="0.01" />
+            </div>
+            <div>
               <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Availability
                 Date</label>
               <input id="listingDate"
@@ -344,6 +351,7 @@
       const price = document.getElementById('listingPrice').value;
       const location = document.getElementById('listingLocation').value;
       const date = document.getElementById('listingDate').value;
+      const baseCost = document.getElementById('listingBaseCost').value || 0;
 
       const token = localStorage.getItem('token');
       if (!token) {
@@ -362,6 +370,7 @@
             type,
             capacity,
             price_per_unit: price,
+            base_cost: baseCost,
             location,
             date,
             details: {}
@@ -399,36 +408,53 @@
           return;
         }
 
-        if (listings.length === 0) {
+        // Only show logistics spaces in the Provider dashboard. Custom splits stay in the Consumer portal.
+        const logisticsTypes = ['cargo_split', 'cold_storage', 'warehouse'];
+        const logisticsListings = listings.filter(l => logisticsTypes.includes(l.type));
+
+        if (logisticsListings.length === 0) {
           listContainer.innerHTML = '<p class="text-center text-slate-400 py-4">No listings yet.</p>';
           return;
         }
 
         listContainer.innerHTML = '';
 
-        listings.forEach(listing => {
+        logisticsListings.forEach(listing => {
           const statusBadge = listing.approved
             ? '<span class="text-[10px] bg-emerald-100 text-emerald-600 px-2 py-1 rounded-full font-bold">Active</span>'
             : '<span class="text-[10px] bg-amber-100 text-amber-600 px-2 py-1 rounded-full font-bold">Pending Approval</span>';
 
           const html = `
-                    <div class="flex items-center justify-between p-4 rounded-xl border border-slate-50 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50">
-                      <div class="flex items-center gap-4">
-                        <div class="w-12 h-12 rounded-lg bg-blue-100 dark:bg-blue-900/40 flex items-center justify-center">
-                          <span class="material-icons text-blue-600 dark:text-blue-400">local_shipping</span>
-                        </div>
-                        <div>
-                          <div class="flex items-center gap-2">
-                              <h4 class="font-semibold text-slate-900 dark:text-white capitalize">${listing.type.replace('_', ' ')}</h4>
-                              ${statusBadge}
+                    <div class="flex flex-col p-4 rounded-xl border border-slate-50 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50">
+                        <div class="flex items-center justify-between mb-3">
+                          <div class="flex items-center gap-4">
+                            <div class="w-12 h-12 rounded-lg bg-blue-100 dark:bg-blue-900/40 flex items-center justify-center">
+                              <span class="material-icons text-blue-600 dark:text-blue-400">local_shipping</span>
+                            </div>
+                            <div>
+                              <div class="flex items-center gap-2">
+                                  <h4 class="font-semibold text-slate-900 dark:text-white capitalize">${listing.type.replace('_', ' ')}</h4>
+                                  ${statusBadge}
+                              </div>
+                              <p class="text-xs text-slate-500">${listing.location || 'Location N/A'} • ${listing.date || 'Date N/A'}</p>
+                            </div>
                           </div>
-                          <p class="text-xs text-slate-500">${listing.location || 'Location N/A'} • ${listing.date || 'Date N/A'}</p>
+                          <div class="text-right">
+                            <p class="text-sm font-bold text-green-600 dark:text-green-400">${listing.capacity}</p>
+                            <p class="text-xs text-slate-400">₹${listing.price_per_unit}/unit</p>
+                          </div>
                         </div>
-                      </div>
-                      <div class="text-right">
-                        <p class="text-sm font-bold text-green-600 dark:text-green-400">${listing.capacity}</p>
-                        <p class="text-xs text-slate-400">$${listing.price_per_unit}/unit</p>
-                      </div>
+                        
+                        <div class="flex justify-end border-t border-slate-200 dark:border-slate-800 pt-3 mt-1 space-x-2">
+                            ${listing.approved ?
+              `<button onclick="openEditModal(${listing.id}, '${listing.capacity}', '${listing.price_per_unit}', '${listing.base_cost}')" class="flex items-center gap-1 text-xs font-bold text-slate-700 dark:text-slate-300 hover:text-primary transition-colors bg-slate-100 dark:bg-slate-800 px-3 py-1.5 rounded-lg">
+                                <span class="material-icons text-[14px]">edit</span> Edit
+                            </button>
+                            <button onclick="openTrackingModal(${listing.id})" class="flex items-center gap-1 text-xs font-bold text-primary hover:text-blue-700 transition-colors bg-blue-50 dark:bg-blue-900/20 px-3 py-1.5 rounded-lg">
+                                <span class="material-icons text-[14px]">add_location</span> Update Tracking
+                            </button>` :
+              '<span class="text-xs text-slate-400 italic">Waiting for approval...</span>'}
+                        </div>
                     </div>
                  `;
           listContainer.insertAdjacentHTML('beforeend', html);
@@ -439,8 +465,28 @@
       }
     }
 
+    // Fetch Provider Dynamic Stats
+    async function fetchStats() {
+      const token = localStorage.getItem('token');
+      if (!token) return;
+      try {
+        const res = await fetch('http://localhost:3000/api/stats', {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (res.ok) {
+          const data = await res.json();
+          document.getElementById('providerAmountEarned').innerText = `$${parseFloat(data.amount_earned).toFixed(2)}`;
+        }
+      } catch (err) {
+        console.error("Error fetching stats:", err);
+      }
+    }
+
     // Load listings on start
-    document.addEventListener('DOMContentLoaded', fetchListings);
+    document.addEventListener('DOMContentLoaded', () => {
+      fetchListings();
+      fetchStats();
+    });
   </script>
   <footer
     class="max-w-7xl mx-auto p-8 flex flex-col md:flex-row justify-between items-center gap-4 text-slate-400 text-xs">
@@ -452,6 +498,312 @@
     </div>
   </footer>
 
+  <!-- Tracking Update Modal -->
+  <div id="trackingModal"
+    class="fixed inset-0 z-[100] hidden items-center justify-center bg-slate-900/50 backdrop-blur-sm">
+    <div
+      class="bg-white dark:bg-slate-800 rounded-2xl p-8 max-w-md w-full mx-4 shadow-2xl border border-slate-100 dark:border-slate-700">
+      <div class="flex justify-between items-center mb-6">
+        <h3 class="text-xl font-bold text-slate-900 dark:text-white">Log Warehouse Checkpoint</h3>
+        <button onclick="closeTrackingModal()" class="text-slate-400 hover:text-red-500 transition-colors">
+          <span class="material-icons">close</span>
+        </button>
+      </div>
+
+      <form id="trackingForm" class="space-y-4">
+        <input type="hidden" id="trackingListingId">
+
+        <div>
+          <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Location / Warehouse
+            Name</label>
+          <input id="trackingLocationName" type="text" required
+            class="w-full bg-slate-50 dark:bg-slate-900/50 border-slate-200 dark:border-slate-800 rounded-xl text-sm focus:ring-primary focus:border-primary py-3"
+            placeholder="e.g. Pune Regional Hub">
+        </div>
+
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Latitude</label>
+            <input id="trackingLat" type="number" step="0.000001" required
+              class="w-full bg-slate-50 dark:bg-slate-900/50 border-slate-200 dark:border-slate-800 rounded-xl text-sm focus:ring-primary focus:border-primary py-3"
+              placeholder="18.5204">
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Longitude</label>
+            <input id="trackingLng" type="number" step="0.000001" required
+              class="w-full bg-slate-50 dark:bg-slate-900/50 border-slate-200 dark:border-slate-800 rounded-xl text-sm focus:ring-primary focus:border-primary py-3"
+              placeholder="73.8567">
+          </div>
+        </div>
+
+        <p class="text-[10px] text-slate-500 italic">Coordinates are required to plot this checkpoint on the consumer
+          map.</p>
+
+        <button type="submit"
+          class="w-full py-3 mt-4 bg-primary text-white rounded-xl font-bold hover:shadow-lg hover:shadow-primary/30 transition-all text-sm">
+          Submit to Admin for Confirmation
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    function openTrackingModal(listingId) {
+      document.getElementById('trackingListingId').value = listingId;
+      document.getElementById('trackingLocationName').value = '';
+      document.getElementById('trackingLat').value = '';
+      document.getElementById('trackingLng').value = '';
+      document.getElementById('trackingModal').classList.remove('hidden');
+      document.getElementById('trackingModal').classList.add('flex');
+    }
+
+    function closeTrackingModal() {
+      document.getElementById('trackingModal').classList.add('hidden');
+      document.getElementById('trackingModal').classList.remove('flex');
+    }
+
+    document.getElementById('trackingForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      const listingId = document.getElementById('trackingListingId').value;
+      const location_name = document.getElementById('trackingLocationName').value;
+      const lat = parseFloat(document.getElementById('trackingLat').value);
+      const lng = parseFloat(document.getElementById('trackingLng').value);
+
+      const token = localStorage.getItem('token');
+
+      try {
+        const res = await fetch(`${API_URL}/tracking/listings/${listingId}`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({ location_name, lat, lng })
+        });
+
+        if (res.ok) {
+          alert("Checkpoint submitted successfully! It is pending Admin review.");
+          closeTrackingModal();
+        } else {
+          const data = await res.json();
+          alert("Failed: " + (data.message || "Unknown error"));
+        }
+      } catch (err) {
+        console.error(err);
+        alert("Error submitting checkpoint.");
+      }
+    });
+  </script>
+
+  <!-- Edit Listing Modal -->
+  <div id="editModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 hidden items-center justify-center">
+    <div
+      class="bg-white dark:bg-slate-900 w-full max-w-md rounded-2xl shadow-2xl overflow-hidden p-6 border border-slate-100 dark:border-slate-800">
+      <div class="flex justify-between items-center mb-6">
+        <h3 class="text-xl font-bold text-slate-900 dark:text-white">Edit Listing</h3>
+        <button onclick="closeEditModal()" class="text-slate-400 hover:text-slate-600 dark:hover:text-white">
+          <span class="material-icons">close</span>
+        </button>
+      </div>
+
+      <form id="editForm" class="space-y-4">
+        <input type="hidden" id="editListingId">
+
+        <div>
+          <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Capacity</label>
+          <input id="editCapacity" type="text" required
+            class="w-full bg-slate-50 dark:bg-slate-900/50 border-slate-200 dark:border-slate-800 rounded-xl text-sm focus:ring-primary focus:border-primary py-3">
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Price Per Unit</label>
+          <input id="editPrice" type="number" step="0.01" required
+            class="w-full bg-slate-50 dark:bg-slate-900/50 border-slate-200 dark:border-slate-800 rounded-xl text-sm focus:ring-primary focus:border-primary py-3">
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Base Cost</label>
+          <input id="editBaseCost" type="number" step="0.01" required
+            class="w-full bg-slate-50 dark:bg-slate-900/50 border-slate-200 dark:border-slate-800 rounded-xl text-sm focus:ring-primary focus:border-primary py-3">
+        </div>
+
+        <button type="submit"
+          class="w-full py-3 mt-4 bg-primary text-white rounded-xl font-bold hover:shadow-lg hover:shadow-primary/30 transition-all text-sm">
+          Save Changes
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    function openEditModal(listingId, capacity, price, baseCost) {
+      document.getElementById('editListingId').value = listingId;
+      document.getElementById('editCapacity').value = capacity;
+      document.getElementById('editPrice').value = price;
+      document.getElementById('editBaseCost').value = baseCost;
+      document.getElementById('editModal').classList.remove('hidden');
+      document.getElementById('editModal').classList.add('flex');
+    }
+
+    function closeEditModal() {
+      document.getElementById('editModal').classList.add('hidden');
+      document.getElementById('editModal').classList.remove('flex');
+    }
+
+    document.getElementById('editForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const listingId = document.getElementById('editListingId').value;
+      const capacity = document.getElementById('editCapacity').value;
+      const price_per_unit = document.getElementById('editPrice').value;
+      const base_cost = document.getElementById('editBaseCost').value;
+      const token = localStorage.getItem('token');
+
+      try {
+        const res = await fetch(`${API_URL}/listings/${listingId}`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({ capacity, price_per_unit, base_cost })
+        });
+        if (res.ok) {
+          alert('Listing updated!');
+          closeEditModal();
+          fetchListings();
+        } else {
+          alert('Failed to update listing');
+        }
+      } catch (err) {
+        console.error(err);
+      }
+    });
+
+    // Earnings History Fetcher
+    async function fetchEarningsHistory() {
+      const token = localStorage.getItem('token');
+      if (!token) return;
+
+      try {
+        const res = await fetch(`${API_URL}/stats/history`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const history = await res.json();
+        const container = document.getElementById('earningsHistoryContainer');
+
+        if (!container) return;
+
+        if (history.length === 0) {
+          container.innerHTML = '<div class="text-center py-12 text-slate-500 text-sm">No confirmed bookings yet.</div>';
+          return;
+        }
+
+        container.innerHTML = '<div class="space-y-4"></div>';
+        const wrapper = container.querySelector('div');
+
+        history.forEach(item => {
+          const html = `
+            <div class="flex justify-between items-center p-4 rounded-xl border border-slate-50 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50">
+              <div class="flex items-center gap-4">
+                <div class="w-10 h-10 rounded-full bg-emerald-100 dark:bg-emerald-900/40 flex items-center justify-center">
+                  <span class="material-icons text-emerald-600 dark:text-emerald-400 text-sm">payments</span>
+                </div>
+                <div>
+                  <h4 class="font-bold text-slate-900 dark:text-white text-sm">${item.consumer_name} <span class="text-xs text-slate-500 font-normal">joined</span> <span class="capitalize">${item.listing_type.replace('_', ' ')}</span></h4>
+                  <p class="text-[10px] text-slate-400 mt-0.5">${new Date(item.date).toLocaleDateString()} • ${item.listing_location}</p>
+                </div>
+              </div>
+              <div class="text-right">
+                <span class="font-bold text-emerald-600 dark:text-emerald-400">+$${item.amount}</span>
+                <p class="text-[10px] text-slate-500">Qty: ${item.quantity}</p>
+              </div>
+            </div>
+          `;
+          wrapper.insertAdjacentHTML('beforeend', html);
+        });
+      } catch (err) {
+        console.error(err);
+      }
+    }
+
+    // Cancellation Management
+    async function fetchCancellationRequests() {
+      const token = localStorage.getItem('token');
+      if (!token) return;
+
+      try {
+        const res = await fetch(`${API_URL}/admin/bookings`, { // Providers can see all their bookings via status stats or we can use a specific route
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        // Actually we need a specific provider route for "requested" cancellations
+        // For now, let's look for them in the bookings if the API supports it.
+        // I'll add a specific endpoint in the backend for this if needed.
+
+        const res2 = await fetch(`${API_URL}/bookings/my-listings-requests`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+
+        const requests = await res2.json();
+        const container = document.getElementById('cancellationRequestsContainer');
+        if (!container) return;
+
+        if (requests.length === 0) {
+          container.innerHTML = '<div class="text-center py-8 text-slate-500 text-sm">No pending requests.</div>';
+          return;
+        }
+
+        container.innerHTML = '';
+        requests.forEach(req => {
+          const html = `
+            <div class="p-4 rounded-xl border border-amber-100 dark:border-amber-900/30 bg-amber-50/30 dark:bg-amber-900/10 space-y-3">
+              <div class="flex justify-between items-start">
+                <div>
+                  <h4 class="font-bold text-sm text-slate-900 dark:text-white">${req.user_name}</h4>
+                  <p class="text-[10px] text-slate-500">${req.type.replace('_', ' ')} • Qty: ${req.quantity}</p>
+                </div>
+                <span class="text-[10px] font-bold text-amber-600 bg-amber-100 px-2 py-0.5 rounded">Requested</span>
+              </div>
+              <p class="text-xs text-slate-600 dark:text-slate-400 italic">"${req.cancellation_reason || 'No reason provided'}"</p>
+              <div class="flex gap-2 pt-2">
+                <button onclick="handleCancellation('${req.id}', 'approved')" class="flex-1 py-2 bg-emerald-600 text-white text-[10px] font-bold rounded-lg hover:bg-emerald-700 transition-colors">Approve</button>
+                <button onclick="handleCancellation('${req.id}', 'denied')" class="flex-1 py-2 bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 text-[10px] font-bold rounded-lg hover:bg-slate-300 transition-colors">Deny</button>
+              </div>
+            </div>
+          `;
+          container.insertAdjacentHTML('beforeend', html);
+        });
+      } catch (err) {
+        console.error(err);
+      }
+    }
+
+    async function handleCancellation(id, status) {
+      const token = localStorage.getItem('token');
+      try {
+        const res = await fetch(`${API_URL}/bookings/${id}/cancel-handle`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+          body: JSON.stringify({ status })
+        });
+        if (res.ok) {
+          alert(`Request ${status}`);
+          fetchCancellationRequests();
+          fetchListings(); // To refresh capacity
+        } else {
+          alert("Failed to handle request");
+        }
+      } catch (err) {
+        console.error(err);
+      }
+    }
+
+    // Call it when the page loads
+    document.addEventListener('DOMContentLoaded', () => {
+      fetchEarningsHistory();
+      fetchCancellationRequests();
+    });
+  </script>
 </body>
 
 </html>

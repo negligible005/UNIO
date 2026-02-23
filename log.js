@@ -47,7 +47,13 @@ async function handleAuth() {
     if (response.ok) {
       localStorage.setItem('token', data.token);
       localStorage.setItem('user', JSON.stringify(data.user));
-      window.location.href = 'consumer.html';
+
+      // Redirect based on role
+      if (data.user && data.user.role === 'admin') {
+        window.location.href = 'admin.html';
+      } else {
+        window.location.href = 'index.html';
+      }
     } else {
       status.innerText = data.message || "Authentication failed";
     }

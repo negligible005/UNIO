@@ -85,7 +85,7 @@
         </div>
 
         <!-- All Bookings Section -->
-        <div>
+        <div class="mb-10">
             <h2 class="text-xl font-bold mb-4 flex items-center gap-2">
                 <span class="material-icons text-blue-600">receipt_long</span>
                 Booking Management
@@ -107,6 +107,36 @@
                         <tbody id="bookingsTable" class="divide-y divide-gray-100">
                             <tr>
                                 <td colspan="6" class="px-6 py-8 text-center text-slate-500">Loading bookings...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tracking Confirmations Section -->
+        <div>
+            <h2 class="text-xl font-bold mb-4 flex items-center gap-2">
+                <span class="material-icons text-indigo-600">location_on</span>
+                Live Tracking Updates (Awaiting Confirmation)
+            </h2>
+            <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-sm">
+                        <thead
+                            class="bg-gray-50 border-b border-gray-200 text-xs uppercase text-slate-500 font-semibold">
+                            <tr>
+                                <th class="px-6 py-4">Provider</th>
+                                <th class="px-6 py-4">Route</th>
+                                <th class="px-6 py-4">Reported Checkpoint</th>
+                                <th class="px-6 py-4">Time</th>
+                                <th class="px-6 py-4 text-right">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="trackingTable" class="divide-y divide-gray-100">
+                            <tr>
+                                <td colspan="5" class="px-6 py-8 text-center text-slate-500">Loading tracking updates...
+                                </td>
                             </tr>
                         </tbody>
                     </table>
@@ -210,8 +240,11 @@
                 }
 
                 container.innerHTML = bookings.map(b => `
-                    <tr class="hover:bg-gray-50 transition-colors">
-                        <td class="px-6 py-4 font-mono text-xs text-slate-500">#${b.id}</td>
+                    <tr class="hover:bg-gray-50 transition-colors ${b.is_priority ? 'bg-amber-50' : ''}">
+                        <td class="px-6 py-4 font-mono text-xs text-slate-500">
+                            #${b.id}
+                            ${b.is_priority ? '<span class="material-icons text-amber-500 text-[16px] ml-1 align-middle" title="Prioritized">star</span>' : ''}
+                        </td>
                         <td class="px-6 py-4 capitalize font-medium">${b.listing_type ? b.listing_type.replace(/_/g, ' ') : 'Unknown'}</td>
                         <td class="px-6 py-4">
                             <div class="text-sm font-bold text-slate-900">${b.user_name}</div>
@@ -224,6 +257,14 @@
                         </td>
                         <td class="px-6 py-4 text-xs text-slate-500">${new Date(b.created_at).toLocaleDateString()}</td>
                         <td class="px-6 py-4 text-right">
+                             <button onclick="togglePriority(${b.id})" class="text-amber-600 hover:bg-amber-50 px-3 py-1 rounded-lg font-bold text-xs transition-colors mr-1">
+                                ${b.is_priority ? 'Unprioritize' : 'Prioritize'}
+                             </button>
+                             
+                             ${b.status !== 'on_hold' && b.status !== 'cancelled' ?
+                        `<button onclick="updateBookingStatus(${b.id}, 'on_hold')" class="text-indigo-600 hover:bg-indigo-50 px-3 py-1 rounded-lg font-bold text-xs transition-colors mr-1">Hold</button>`
+                        : ''}
+
                              ${b.status !== 'cancelled' ?
                         `<button onclick="updateBookingStatus(${b.id}, 'cancelled')" class="text-red-600 hover:bg-red-50 px-3 py-1 rounded-lg font-bold text-xs transition-colors">Cancel</button>`
                         : '<span class="text-xs text-slate-400 italic">Cancelled</span>'}
@@ -240,8 +281,26 @@
             switch (status) {
                 case 'confirmed': return 'bg-emerald-100 text-emerald-700';
                 case 'pending': return 'bg-amber-100 text-amber-700';
+                case 'on_hold': return 'bg-indigo-100 text-indigo-700';
                 case 'cancelled': return 'bg-slate-100 text-slate-500 line-through';
                 default: return 'bg-slate-100 text-slate-700';
+            }
+        }
+
+        async function togglePriority(id) {
+            try {
+                const res = await fetch(`${API_URL}/admin/bookings/${id}/prioritize`, {
+                    method: 'PUT',
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+
+                if (res.ok) {
+                    fetchAllBookings();
+                } else {
+                    alert("Update failed");
+                }
+            } catch (err) {
+                console.error(err);
             }
         }
 
@@ -268,9 +327,70 @@
             }
         }
 
+        async function fetchTrackingUpdates() {
+            try {
+                const res = await fetch(`${API_URL}/admin/tracking/pending`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const updates = await res.json();
+                const container = document.getElementById('trackingTable');
+
+                if (updates.length === 0) {
+                    container.innerHTML = '<tr><td colspan="5" class="px-6 py-8 text-center text-slate-500">No pending tracking updates.</td></tr>';
+                    return;
+                }
+
+                container.innerHTML = updates.map(t => `
+                    <tr class="hover:bg-gray-50 transition-colors">
+                        <td class="px-6 py-4">
+                            <div class="font-bold text-slate-900">${t.provider_name}</div>
+                            <div class="text-xs text-slate-500 capitalize">${t.listing_type ? t.listing_type.replace(/_/g, ' ') : ''}</div>
+                        </td>
+                        <td class="px-6 py-4 font-medium text-slate-700">${t.route_details}</td>
+                        <td class="px-6 py-4">
+                            <div class="font-bold text-indigo-600 flex items-center gap-1">
+                                <span class="material-icons text-sm">place</span> ${t.location_name}
+                            </div>
+                            <div class="text-[10px] text-slate-400 mt-0.5">Lat: ${t.lat}, Lng: ${t.lng}</div>
+                        </td>
+                        <td class="px-6 py-4 text-xs text-slate-500">${new Date(t.reported_at).toLocaleString()}</td>
+                        <td class="px-6 py-4 text-right">
+                             <button onclick="manageTracking(${t.id}, 'confirm')" class="text-indigo-600 hover:bg-indigo-50 px-3 py-1 rounded-lg font-bold text-xs transition-colors mr-2">Confirm</button>
+                             <button onclick="manageTracking(${t.id}, 'reject')" class="text-red-600 hover:bg-red-50 px-3 py-1 rounded-lg font-bold text-xs transition-colors">Reject</button>
+                        </td>
+                    </tr>
+                `).join('');
+            } catch (err) {
+                console.error(err);
+            }
+        }
+
+        async function manageTracking(id, action) {
+            if (!confirm(`Are you sure you want to ${action} this checkpoint?`)) return;
+
+            try {
+                const method = action === 'confirm' ? 'PUT' : 'DELETE';
+                const endpoint = action === 'confirm' ? 'confirm' : 'reject';
+
+                const res = await fetch(`${API_URL}/admin/tracking/${id}/${endpoint}`, {
+                    method: method,
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+
+                if (res.ok) {
+                    fetchTrackingUpdates(); // Refresh
+                } else {
+                    alert("Action failed");
+                }
+            } catch (err) {
+                console.error(err);
+            }
+        }
+
         // Initialize
         fetchPendingListings();
         fetchAllBookings();
+        fetchTrackingUpdates();
     </script>
 </body>
 
