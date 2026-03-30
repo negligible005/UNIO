@@ -18,7 +18,7 @@
 </head>
 <body class="bg-slate-50 text-slate-900 min-h-screen flex">
 
-    <!-- Sidebar -->
+    <!-- Sidebar Navigation: Central hub for switching between different administrative management views -->
     <aside class="w-64 bg-white border-r border-slate-200 sticky top-0 h-screen flex flex-col z-50">
         <div class="p-6 flex items-center gap-3">
             <div class="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center shadow-lg shadow-blue-200">
@@ -64,7 +64,7 @@
 
     <!-- Main Content -->
     <main class="flex-1 flex flex-col min-w-0">
-        <!-- Header -->
+        <!-- Dashboard Header: Displays the current section title, API connection status, and refresh controls -->
         <header class="bg-white/80 glass border-b border-slate-200 h-16 sticky top-0 z-40 px-8 flex items-center justify-between">
             <h1 class="text-lg font-bold text-slate-800" id="sectionTitle">Dashboard Overview</h1>
             <div class="flex items-center gap-4">
@@ -79,7 +79,7 @@
         </header>
 
         <div class="p-8">
-            <!-- SECTION: OVERVIEW -->
+            <!-- Overview Section: High-level system statistics and real-time activity monitoring -->
             <section id="section-overview" class="space-y-8 animate-in fade-in duration-500">
                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                     <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
@@ -161,7 +161,7 @@
                 </div>
             </section>
 
-            <!-- SECTION: USERS -->
+            <!-- User Management Section: Tabular view of registered users with administrative action controls -->
             <section id="section-users" class="hidden space-y-6">
                 <div class="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
                     <table class="w-full text-left text-sm">
@@ -181,7 +181,7 @@
                 </div>
             </section>
 
-            <!-- SECTION: LISTINGS -->
+            <!-- Listing Management Section: Moderation interface for reviewing and approving service provider listings -->
             <section id="section-listings" class="hidden space-y-6">
                 <div class="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
                     <table class="w-full text-left text-sm">
@@ -284,13 +284,27 @@
     </main>
 
     <script>
-        const MAIN_API = '/api';
+        const MAIN_API = 'http://localhost:3000/api';
         const token = localStorage.getItem('token');
-        const user = JSON.parse(localStorage.getItem('user'));
+        const user = JSON.parse(localStorage.getItem('user') || 'null');
+
+        // Force logout on server restart by comparing session IDs
+        (async () => {
+            try {
+                const res = await fetch(`${MAIN_API}/sys/session`);
+                const { sessionId } = await res.json();
+                const storedSessionId = localStorage.getItem('adminSessionId');
+                if (storedSessionId !== sessionId) {
+                    localStorage.setItem('adminSessionId', sessionId);
+                    localStorage.removeItem('token');
+                    localStorage.removeItem('user');
+                    window.location.href = '/login.html';
+                }
+            } catch (e) { /* server not reachable, leave as-is */ }
+        })();
 
         // Basic check - will redirect to main login if not authenticated as admin
         if (!token || !user || user.role !== 'admin') {
-            alert('Admin access required. Please login to the main application first.');
             window.location.href = '/login.html';
         }
 
@@ -385,13 +399,13 @@
                     </td>
                     <td class="px-6 py-4 font-semibold text-emerald-600">₹${l.price_per_unit}</td>
                     <td class="px-6 py-4">
-                        <span class="px-2 py-1 rounded-full text-[10px] font-extrabold ${l.approved ? 'bg-emerald-100 text-emerald-600' : 'bg-amber-100 text-amber-600'}">
-                            ${l.approved ? 'APPROVED' : 'PENDING'}
+                        <span class="px-2 py-1 rounded-full text-[10px] font-extrabold ${l.status === 'approved' ? 'bg-emerald-100 text-emerald-600' : (l.status === 'rejected' ? 'bg-red-100 text-red-600' : 'bg-amber-100 text-amber-600')}">
+                            ${(l.status || 'pending').toUpperCase()}
                         </span>
                     </td>
                     <td class="px-6 py-4 text-right">
-                        ${!l.approved ? `<button onclick="actionListing(${l.id}, 'approve')" class="text-blue-600 font-bold text-xs mr-3">Approve</button>` : ''}
-                        <button onclick="actionListing(${l.id}, 'reject')" class="text-red-500 font-bold text-xs">Delete</button>
+                        ${l.status !== 'approved' ? `<button onclick="actionListing(${l.id}, 'approve')" class="text-blue-600 font-bold text-xs mr-3">Approve</button>` : ''}
+                        ${l.status !== 'rejected' ? `<button onclick="actionListing(${l.id}, 'reject')" class="text-red-500 font-bold text-xs">Reject</button>` : ''}
                     </td>
                 </tr>
             `).join('');
@@ -413,7 +427,7 @@
                     <td class="px-6 py-4 capitalize font-bold text-[10px] ${mi.status === 'active' ? 'text-emerald-500' : 'text-amber-500'}">${mi.status}</td>
                     <td class="px-6 py-4 text-right">
                         ${mi.status !== 'active' ? `<button onclick="actionMarket(${mi.id}, 'approve')" class="text-blue-600 font-bold text-xs mr-3">Approve</button>` : ''}
-                        <button onclick="actionMarket(${mi.id}, 'reject')" class="text-red-500 font-bold text-xs">Reject</button>
+                        ${mi.status !== 'rejected' ? `<button onclick="actionMarket(${mi.id}, 'reject')" class="text-red-500 font-bold text-xs">Reject</button>` : ''}
                     </td>
                 </tr>
            `).join('');
@@ -431,8 +445,8 @@
                     <td class="px-6 py-4 text-xs font-bold text-blue-600">${s.filled_slots}/${s.total_slots} Filled</td>
                     <td class="px-6 py-4 capitalize font-bold text-[10px]">${s.status}</td>
                     <td class="px-6 py-4 text-right">
-                        ${s.status === 'pending' ? `<button onclick="actionSplit(${s.id}, 'approve')" class="text-blue-600 font-bold text-xs mr-3">Approve</button>` : ''}
-                        <button onclick="actionSplit(${s.id}, 'reject')" class="text-red-500 font-bold text-xs">Reject</button>
+                        ${s.status !== 'open' ? `<button onclick="actionSplit(${s.id}, 'approve')" class="text-blue-600 font-bold text-xs mr-3">Approve</button>` : ''}
+                        ${s.status !== 'rejected' ? `<button onclick="actionSplit(${s.id}, 'reject')" class="text-red-500 font-bold text-xs">Reject</button>` : ''}
                     </td>
                 </tr>
             `).join('');
@@ -451,7 +465,7 @@
                     </td>
                     <td class="px-6 py-4 font-semibold text-slate-600 text-xs">${b.user_name}</td>
                     <td class="px-6 py-4">
-                        <select onchange="updateBookingStatus(${b.id}, this.value)" class="bg-blue-50 text-blue-600 text-[10px] font-extrabold uppercase px-2 py-1 rounded-lg border-none focus:ring-2 focus:ring-blue-500">
+                        <select id="status-select-${b.id}" onchange="updateBookingStatus(${b.id}, this.value)" class="bg-blue-50 text-blue-600 text-[10px] font-extrabold uppercase px-2 py-1 rounded-lg border-none focus:ring-2 focus:ring-blue-500">
                             <option value="confirmed" ${b.status === 'confirmed' ? 'selected' : ''}>Confirmed</option>
                             <option value="processing" ${b.status === 'processing' ? 'selected' : ''}>Processing</option>
                             <option value="shipped" ${b.status === 'shipped' ? 'selected' : ''}>Shipped</option>
@@ -462,12 +476,12 @@
                     </td>
                     <td class="px-6 py-4">
                         <div class="text-[10px] font-bold uppercase text-slate-500 mb-1">₹${b.total_price} • <span class="${b.payment_status === 'paid' ? 'text-emerald-500' : 'text-red-400'}">${b.payment_status}</span></div>
-                        <input type="text" placeholder="ETA (e.g. 2 hrs)" value="${b.eta || ''}" 
+                        <input id="eta-input-${b.id}" type="text" placeholder="ETA (e.g. 2 hrs)" value="${b.eta || ''}" 
                                onblur="updateBookingETA(${b.id}, this.value)"
                                class="text-[9px] w-24 px-2 py-1 border border-slate-200 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-400">
                     </td>
                     <td class="px-6 py-4 text-right">
-                        <button onclick="updateBookingStatus(${b.id}, 'confirmed')" class="text-emerald-500 font-bold text-xs">Push Update</button>
+                        <button onclick="updateBookingStatus(${b.id})" class="text-emerald-500 font-bold text-xs">Push Update</button>
                     </td>
                 </tr>
             `).join('');
@@ -505,27 +519,131 @@
             if (res.ok) refreshData('feedbacks');
         }
 
-        async function updateBookingStatus(id, status) {
-            const eta = document.querySelector(`input[onblur="updateBookingETA(${id}, this.value)"]`).value;
-            const res = await fetch(`${MAIN_API}/admin/bookings/${id}/status`, {
-                method: 'PUT',
-                headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
-                body: JSON.stringify({ status, eta })
-            });
-            if (res.ok) {
-                console.log(`Status updated for ${id} to ${status}`);
-                refreshData('bookings');
+        async function updateBookingStatus(id, newStatus = null) {
+            const status = newStatus || document.getElementById(`status-select-${id}`).value;
+            const eta = document.getElementById(`eta-input-${id}`).value;
+            
+            try {
+                const res = await fetch(`${MAIN_API}/admin/bookings/${id}/status`, {
+                    method: 'PUT',
+                    headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ status, eta })
+                });
+                
+                if (res.ok) {
+                    console.log(`Status updated for ${id} to ${status}`);
+                    // Optional: show a small toast or just refresh
+                    refreshData('bookings');
+                } else {
+                    const error = await res.json();
+                    alert(`Failed to update: ${error.message || 'Server Error'}`);
+                }
+            } catch (err) {
+                console.error(err);
+                alert("Connection Error. Is the Main API running?");
             }
         }
 
         async function updateBookingETA(id, eta) {
-            const status = document.querySelector(`select[onchange="updateBookingStatus(${id}, this.value)"]`).value;
-            const res = await fetch(`${MAIN_API}/admin/bookings/${id}/status`, {
-                method: 'PUT',
-                headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
-                body: JSON.stringify({ status, eta })
-            });
-            if (res.ok) console.log(`ETA updated for ${id} to ${eta}`);
+            const status = document.getElementById(`status-select-${id}`).value;
+            try {
+                const res = await fetch(`${MAIN_API}/admin/bookings/${id}/status`, {
+                    method: 'PUT',
+                    headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ status, eta })
+                });
+                if (res.ok) {
+                    console.log(`ETA updated for ${id} to ${eta}`);
+                    // Minimal feedback for blur action
+                } else {
+                    const error = await res.json();
+                    alert(`Failed to update ETA: ${error.message}`);
+                }
+            } catch (err) {
+                console.error(err);
+                alert("Connection Error updating ETA.");
+            }
+        }
+
+        async function deleteUser(id) {
+            if (!confirm('Are you sure you want to ban this user?')) return;
+            try {
+                const res = await fetch(`${MAIN_API}/admin/users/${id}`, {
+                    method: 'DELETE',
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                if (res.ok) {
+                    alert("User banned/deleted successfully.");
+                    refreshData('users');
+                } else {
+                    const error = await res.json();
+                    alert(`Failed to ban: ${error.message || 'Server Error'}`);
+                }
+            } catch (err) {
+                console.error(err);
+                alert("Connection Error. Is the Main API running?");
+            }
+        }
+
+        async function actionListing(id, action) {
+            if (!confirm(`Are you sure you want to ${action} this listing?`)) return;
+            try {
+                // Listing Approve is PUT, Reject is DELETE
+                const method = action === 'approve' ? 'PUT' : 'DELETE';
+                const res = await fetch(`${MAIN_API}/admin/listings/${id}/${action}`, {
+                    method: method,
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                if (res.ok) {
+                    refreshData('listings');
+                } else {
+                    const error = await res.json();
+                    alert(`Failed to ${action}: ${error.message || 'Server Error'}`);
+                }
+            } catch (err) {
+                console.error(err);
+                alert("Connection Error.");
+            }
+        }
+
+        async function actionMarket(id, action) {
+            if (!confirm(`Are you sure you want to ${action} this marketplace post?`)) return;
+            try {
+                // Marketplace both are PUT
+                const res = await fetch(`${MAIN_API}/admin/marketplace/${id}/${action}`, {
+                    method: 'PUT',
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                if (res.ok) {
+                    refreshData('marketplace');
+                } else {
+                    const error = await res.json();
+                    alert(`Failed to ${action}: ${error.message || 'Server Error'}`);
+                }
+            } catch (err) {
+                console.error(err);
+                alert("Connection Error.");
+            }
+        }
+
+        async function actionSplit(id, action) {
+            if (!confirm(`Are you sure you want to ${action} this split request?`)) return;
+            try {
+                // Split both are PUT
+                const res = await fetch(`${MAIN_API}/admin/splits/${id}/${action}`, {
+                    method: 'PUT',
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                if (res.ok) {
+                    refreshData('splits');
+                } else {
+                    const error = await res.json();
+                    alert(`Failed to ${action}: ${error.message || 'Server Error'}`);
+                }
+            } catch (err) {
+                console.error(err);
+                alert("Connection Error.");
+            }
         }
 
         function logout() {

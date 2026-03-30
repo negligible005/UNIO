@@ -107,6 +107,7 @@
 </head>
 
 <body class="bg-background-light dark:bg-background-dark text-slate-900 dark:text-slate-100 min-h-screen">
+  <!-- Main Navigation: Logo, dashboard links, notifications, and profile menu -->
   <nav
     class="sticky top-0 z-50 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-b border-slate-200 dark:border-slate-800">
     <div class="max-w-[1440px] mx-auto px-6 h-20 flex items-center justify-between">
@@ -184,7 +185,7 @@
     <div style="display:flex; flex-direction:row; flex-wrap:nowrap; gap:1.5rem; align-items:flex-start; width:100%;">
       <!-- Main Content Area -->
       <div style="flex:1; min-width:0; overflow:hidden;">
-        <!-- Header -->
+        <!-- Dashboard Welcome: Personalized greeting and title -->
         <div class="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4">
           <div>
             <h1 id="dashboardTitle" class="text-3xl font-bold mb-1">Consumer Dashboard</h1>
@@ -192,16 +193,10 @@
               and manage your shared resources.</p>
           </div>
           <div class="flex gap-3">
-
-            <a href="booking.html"
-              class="flex items-center gap-2 px-6 py-3 bg-primary text-white font-semibold rounded-full hover:shadow-lg hover:shadow-primary/20 transition-all">
-              <span class="material-symbols-outlined text-lg">add</span>
-              Quick Booking
-            </a>
           </div>
         </div>
 
-        <!-- Stats -->
+        <!-- Consumer Statistics: Visual overview of savings and active split counts -->
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-10">
           <div onclick="openSavingsAnalytics()"
             class="bg-white dark:bg-slate-800 p-6 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-sm relative overflow-hidden group hover:border-primary transition-all cursor-pointer">
@@ -228,7 +223,7 @@
           </div>
         </div>
 
-        <!-- Content Sections -->
+        <!-- Resource Categories: Tabbed navigation for different types of logistics and digital services -->
         <div class="relative w-full max-w-full">
           <!-- Tabs / Header -->
           <div
@@ -263,11 +258,6 @@
 
 
 
-            <div class="ml-auto flex items-center gap-4 pl-4 border-l border-slate-200 dark:border-slate-800"
-              id="categoryActions">
-              <button class="text-sm font-semibold text-primary hover:underline whitespace-nowrap"
-                onclick="window.location.href='cargo.html'">Browse Map</button>
-            </div>
           </div>
 
           <!-- Separator & Slider Container -->
@@ -881,6 +871,7 @@
         allListings.forEach(l => {
           if (!l.approved) return;
           if (l.provider_id === user.id) return; // Hide self-created splits
+          if (parseFloat(l.capacity) <= 0) return; // Hide filled out listings
 
           const html = createListingHTML(l);
           if (['cargo_split', 'cold_storage', 'warehouse'].includes(l.type)) {
@@ -975,6 +966,11 @@
 
         bookings.forEach(b => {
           if (b.status !== 'cancelled') {
+            const requiresPayment = parseFloat(b.total_price) > 0 && b.details?.payment_enabled !== false;
+            if (requiresPayment && b.payment_status === 'unpaid') {
+              return; // Ignore unpaid bookings completely
+            }
+
             // If it's a standard split or a confirmed booking we treat as "Split Membership"
             if (b.entry_type === 'split' || b.status === 'confirmed') {
               activeCount++;
@@ -1022,22 +1018,12 @@
                     </div>
                     <div class="flex justify-between text-xs">
                         <span class="text-slate-500">Date</span>
-                        <span class="font-bold text-primary">${b.date}</span>
+                        <span class="font-bold text-primary">${b.details && b.details.selected_date ? b.details.selected_date : b.date}</span>
                     </div>
-                    ${(b.payment_status === 'unpaid' && parseFloat(b.total_price) > 0 && b.details?.payment_enabled !== false) ? `
-                    <div class="flex justify-between text-xs">
-                        <span class="text-rose-500 font-bold">Amount Due</span>
-                        <span class="font-bold text-rose-500">₹${parseFloat(b.total_price).toFixed(2)}</span>
-                    </div>
-                    <button onclick="payForBooking('${b.id}', ${b.total_price})" class="w-full py-2 bg-primary text-white rounded-xl text-[10px] font-bold hover:bg-primary/90 transition-colors mt-2 mb-2">
-                        Pay Now ⚡
-                    </button>
-                    ` : `
                     <div class="flex justify-between text-xs">
                         <span class="text-slate-500">Total Paid</span>
                         <span class="font-bold">₹${parseFloat(b.total_price).toFixed(2)}</span>
                     </div>
-                    `}
                     ${b.confirmation_id ? `
                     <div class="flex justify-between text-xs bg-slate-100 dark:bg-slate-800 p-2 rounded-lg mt-2">
                         <span class="text-slate-500 uppercase tracking-wider text-[9px] font-bold self-center">Payment ID</span>
@@ -1359,9 +1345,21 @@
               qrCodeData: paymentResult.qrCodeData,
               amount: amount
             }, async (confirmedData) => {
-              alert("Booking and Payment Successful! Reference ID: " + confirmedData.confirmationId);
+              alert("Payment Successful! Reference ID: " + confirmedData.confirmationId);
               closeUniversalBookingModal();
-              refreshDashboard();
+              fetchJoinedSplits();
+              fetchStats();
+            }, async () => {
+              // User closed the modal without paying -> Restore capacity
+              try {
+                await fetch(`${API_URL}/bookings/${booking.id}`, {
+                  method: 'DELETE',
+                  headers: { 'Authorization': `Bearer ${token}` }
+                });
+                console.log('Booking implicitly cancelled and capacity restored.');
+              } catch(e) { console.error('Error auto-cancelling booking:', e); }
+              closeUniversalBookingModal();
+              fetchJoinedSplits();
             });
           } else {
             // Free booking bypasses payment
@@ -1441,31 +1439,9 @@
                 </div>
                 <div class="mb-4">
                   <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Total Subscription Cost (₹)</label>
-                  <input type="number" id="splitTotalCost" min="1" step="0.01" class="w-full bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 rounded-2xl px-5 py-3.5 text-sm" placeholder="e.g. 1000.00">
+                  <input type="number" id="splitTotalCost" min="1" step="0.01" required class="w-full bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 rounded-2xl px-5 py-3.5 text-sm" placeholder="e.g. 1000.00">
                 </div>
             `;
-
-
-        const priceContainer = document.getElementById('priceSlotContainer');
-        const capacityGrid = document.getElementById('capacityPriceGrid');
-        priceContainer.classList.remove('hidden');
-        capacityGrid.classList.value = 'grid grid-cols-2 gap-4';
-
-        // Auto-calculate logic
-        document.getElementById('splitPrice').readOnly = true;
-        document.getElementById('splitPrice').classList.add('opacity-70', 'cursor-not-allowed', 'bg-slate-100', 'dark:bg-slate-800');
-        document.getElementById('splitPrice').required = true;
-
-        const autoCalc = () => {
-          const total = parseFloat(document.getElementById('splitTotalCost').value) || 0;
-          const slots = parseInt(document.getElementById('splitCapacity').value) || 1;
-          if (slots > 0) {
-            document.getElementById('splitPrice').value = (Math.ceil((total / slots) * 100) / 100).toFixed(2);
-          }
-        };
-
-        document.getElementById('splitTotalCost').addEventListener('input', autoCalc);
-        document.getElementById('splitCapacity').addEventListener('input', autoCalc);
       } else {
         title.innerText = 'Custom Split Details';
         detailsLabel.innerText = 'What are you splitting?';
@@ -1479,6 +1455,10 @@
                       <option value="other">Other Community Split</option>
                   </select>
                 </div>
+                <div class="mb-4" id="customTotalCostContainer">
+                  <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Total Price (₹)</label>
+                  <input type="number" id="splitTotalCost" min="1" step="0.01" class="w-full bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 rounded-2xl px-5 py-3.5 text-sm" placeholder="e.g. 5000.00">
+                </div>
                 <div class="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 rounded-2xl mb-4">
                     <div>
                         <h5 class="text-sm font-bold text-slate-900 dark:text-white">Require Payment via UNIO</h5>
@@ -1490,31 +1470,57 @@
                     </label>
                 </div>
             `;
+      }
 
-        // Reset readOnly and set listeners for the toggle
-        const priceInp = document.getElementById('splitPrice');
-        const priceContainer = document.getElementById('priceSlotContainer');
-        const capacityGrid = document.getElementById('capacityPriceGrid');
+      const priceInp = document.getElementById('splitPrice');
+      const priceContainer = document.getElementById('priceSlotContainer');
+      const capacityGrid = document.getElementById('capacityPriceGrid');
+      
+      const autoCalc = () => {
+        const totalInp = document.getElementById('splitTotalCost');
+        if (!totalInp) return;
+        const total = parseFloat(totalInp.value) || 0;
+        const slots = parseInt(document.getElementById('splitCapacity').value) || 1;
+        if (slots > 0) {
+          priceInp.value = (Math.ceil((total / slots) * 100) / 100).toFixed(2);
+        }
+      };
 
-        priceInp.readOnly = false;
-        priceInp.classList.remove('opacity-70', 'cursor-not-allowed', 'bg-slate-100', 'dark:bg-slate-800');
-        priceInp.value = ''; // clear any auto-calc
+      if (type === 'digital_subscriptions') {
+        priceContainer.classList.remove('hidden');
+        capacityGrid.classList.value = 'grid grid-cols-2 gap-4';
+        priceInp.readOnly = true;
+        priceInp.classList.add('opacity-70', 'cursor-not-allowed', 'bg-slate-100', 'dark:bg-slate-800');
+        priceInp.required = true;
+        
+        document.getElementById('splitTotalCost').addEventListener('input', autoCalc);
+        document.getElementById('splitCapacity').addEventListener('input', autoCalc);
+      } else {
         const toggle = document.getElementById('splitPaymentEnabled');
         if (toggle) {
           toggle.addEventListener('change', (e) => {
             if (e.target.checked) {
               priceContainer.classList.remove('hidden');
+              document.getElementById('customTotalCostContainer').classList.remove('hidden');
               capacityGrid.classList.value = 'grid grid-cols-2 gap-4';
               priceInp.required = true;
-              if (priceInp.value === '0') priceInp.value = '';
+              priceInp.readOnly = true;
+              priceInp.classList.add('opacity-70', 'cursor-not-allowed', 'bg-slate-100', 'dark:bg-slate-800');
+              document.getElementById('splitTotalCost').required = true;
+              
+              document.getElementById('splitTotalCost').addEventListener('input', autoCalc);
+              document.getElementById('splitCapacity').addEventListener('input', autoCalc);
+              autoCalc();
             } else {
               priceContainer.classList.add('hidden');
+              document.getElementById('customTotalCostContainer').classList.add('hidden');
               capacityGrid.classList.value = 'grid grid-cols-1 gap-4';
               priceInp.required = false;
               priceInp.value = '0';
+              document.getElementById('splitTotalCost').required = false;
+              document.getElementById('splitTotalCost').value = '';
             }
           });
-          // Set initial state
           toggle.dispatchEvent(new Event('change'));
         }
       }
@@ -1539,6 +1545,7 @@
         details: {
           app: type === 'digital_subscriptions' ? document.getElementById('splitService').value : document.getElementById('splitDetails').value,
           info: document.getElementById('splitDetails').value,
+          total_cost: document.getElementById('splitTotalCost') ? document.getElementById('splitTotalCost').value : null,
           payment_enabled: document.getElementById('splitPaymentEnabled') ? document.getElementById('splitPaymentEnabled').checked : true
         },
         location: type === 'digital_subscriptions' ? 'Remote' : 'Local/Community',

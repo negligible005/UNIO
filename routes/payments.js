@@ -4,9 +4,14 @@ const os = require('os');
 const { pool } = require('../db');
 const { authenticateToken } = require('../middleware/authMiddleware');
 
-// Generate unique confirmation ID
+/**
+ * generateConfirmationId: Utility to create a unique alphanumeric identifier for every transaction.
+ * @returns {string} e.g. "PAY-L3K2...-M9N1..."
+ */
 const generateConfirmationId = () => {
+    // Generate a Base36 representation of the current system time
     const timestamp = Date.now().toString(36).toUpperCase();
+    // Generate a random string fragment for added collision resistance
     const random = Math.random().toString(36).substring(2, 8).toUpperCase();
     return `PAY-${timestamp}-${random}`;
 };
@@ -31,7 +36,11 @@ const generateQRCodeData = (paymentId, confirmationId) => {
     return `http://${hostIp}:${port}/api/payments/scan/${paymentId}/${confirmationId}`;
 };
 
-// Initiate a dummy payment (generate QR code)
+/**
+ * POST /api/payments/initiate
+ * Initializes a new payment record and generates a unique QR code for the transaction.
+ * @requires authenticateToken
+ */
 router.post('/initiate', authenticateToken, async (req, res) => {
     try {
         const { split_id, booking_id, item_id, amount, method } = req.body;
@@ -112,7 +121,12 @@ router.get('/user/history', authenticateToken, async (req, res) => {
     }
 });
 
-// Confirm payment (when QR is scanned and user presses okay)
+/**
+ * POST /api/payments/confirm
+ * Finalizes a payment after the user confirms completion of the transfer.
+ * Updates associated bookings or split statuses to 'paid'/'completed'.
+ * @requires authenticateToken
+ */
 router.post('/confirm', authenticateToken, async (req, res) => {
     const client = await pool.connect();
     try {
@@ -283,7 +297,11 @@ router.get('/status/:paymentId', authenticateToken, async (req, res) => {
     }
 });
 
-// Handle QR code scan - mark payment as scanned (not yet completed)
+/**
+ * GET /api/payments/scan/:paymentId/:confirmationId
+ * Public endpoint accessed when a phone scans the transaction QR code.
+ * Marks the payment as 'scanned' in the database to enable the desktop confirmation button.
+ */
 router.get('/scan/:paymentId/:confirmationId', async (req, res) => {
     const client = await pool.connect();
     try {

@@ -1,20 +1,29 @@
+/**
+ * PaymentSystem: Core frontend orchestrator for secure payment processing and modal management.
+ */
 const PaymentSystem = {
+    /**
+     * Initialize the payment system logs.
+     */
     init: function () {
         console.log('Payment System Initialized');
     },
 
     /**
-     * Initiate payment process
-     * @param {Object} data { split_id, booking_id, amount, method }
-     * @returns {Promise}
+     * Initiate a new payment transaction via the backend API.
+     * @param {Object} data - Contains payment context { split_id, booking_id, amount, method }.
+     * @returns {Promise<Object>} - The raw transaction data from the server.
      */
     initiate: async function (data) {
         try {
+            // Retrieve the active bearer token from local storage
             const token = localStorage.getItem('token');
+            // Halt the process if the user is not authenticated
             if (!token) {
                 throw new Error('User not authenticated');
             }
 
+            // Dispatch a POST request to the payment initiation endpoint
             const response = await fetch('/api/payments/initiate', {
                 method: 'POST',
                 headers: {
@@ -24,32 +33,37 @@ const PaymentSystem = {
                 body: JSON.stringify(data)
             });
 
+            // Parse and return the resulting JSON payload
             const result = await response.json();
+            // Check for HTTP error codes and throw descriptive errors if found
             if (!response.ok) {
                 throw new Error(result.message || 'Failed to initiate payment');
             }
 
             return result;
         } catch (error) {
+            // Log full error details for developer debugging
             console.error('Payment initiation error:', error);
             throw error;
         }
     },
 
     /**
-     * Show the payment modal with QR code
-     * @param {Object} paymentData { paymentId, confirmationId, qrCodeData, amount }
-     * @param {Function} onConfirm Callback when payment is manually confirmed
+     * Renders a dynamic payment modal with QR code and status polling.
+     * @param {Object} paymentData - { paymentId, confirmationId, qrCodeData, amount }.
+     * @param {Function} onConfirm - Success callback executed after payment verification.
+     * @param {Function} onCancel - Cleanup callback executed if the user exits the modal.
      */
-    showModal: function (paymentData, onConfirm) {
-        // Remove existing modal if any
+    showModal: function (paymentData, onConfirm, onCancel) {
+        // Enforce a singleton modal by removing any pre-existing instances
         const existingModal = document.getElementById('payment-system-modal');
         if (existingModal) existingModal.remove();
 
+        // Template for the premium glassmorphism modal
         const modalHtml = `
             <div id="payment-system-modal" class="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
                 <div class="bg-white dark:bg-slate-800 rounded-3xl w-full max-w-md overflow-hidden shadow-2xl animate-in fade-in zoom-in duration-300">
-                    <!-- Header -->
+                    <!-- Header Section -->
                     <div class="p-6 border-b border-slate-100 dark:border-slate-700 flex justify-between items-center">
                         <h3 class="text-xl font-bold text-slate-900 dark:text-white">Complete Payment</h3>
                         <button onclick="document.getElementById('payment-system-modal').remove()" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
@@ -57,13 +71,14 @@ const PaymentSystem = {
                         </button>
                     </div>
 
-                    <!-- Content -->
+                    <!-- Main Transaction Content -->
                     <div class="p-8 text-center">
                         <div class="mb-6">
                             <p class="text-slate-500 dark:text-slate-400 mb-1">Amount to Pay</p>
                             <p class="text-4xl font-black text-slate-900 dark:text-white">₹${parseFloat(paymentData.amount).toFixed(2)}</p>
                         </div>
 
+                        <!-- Dynamic QR Code Container -->
                         <div class="bg-slate-50 dark:bg-slate-900/50 rounded-2xl p-6 mb-6">
                             <div class="bg-white p-4 rounded-xl inline-block mb-4 shadow-sm">
                                 <img src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(paymentData.qrCodeData)}" alt="Scan to Pay" class="w-48 h-48 object-contain">
@@ -77,6 +92,7 @@ const PaymentSystem = {
                             </div>
                         </div>
 
+                        <!-- Primary Interactive Control -->
                         <div class="space-y-3">
                             <button id="confirm-payment-btn" class="w-full py-4 bg-primary text-white rounded-xl font-bold hover:bg-primary/90 transition-all flex items-center justify-center gap-2">
                                 <span class="material-symbols-outlined">check_circle</span>
@@ -86,7 +102,7 @@ const PaymentSystem = {
                         </div>
                     </div>
 
-                    <!-- Footer -->
+                    <!-- Footer Warning/Info -->
                     <div class="p-4 bg-slate-50 dark:bg-slate-900/30 text-center">
                         <p class="text-xs text-slate-500">This is a secure dummy payment system</p>
                     </div>
@@ -94,16 +110,17 @@ const PaymentSystem = {
             </div>
         `;
 
+        // Inject the modal into the live DOM
         document.body.insertAdjacentHTML('beforeend', modalHtml);
 
         const btn = document.getElementById('confirm-payment-btn');
-        // Start with button DISABLED — must scan QR first
+        // Initial state: Button is disabled until a QR scan event is detected remotely
         btn.disabled = true;
         btn.classList.remove('bg-primary', 'hover:bg-primary/90');
         btn.classList.add('bg-slate-500', 'cursor-not-allowed', 'opacity-60');
         btn.innerHTML = '<span class="material-symbols-outlined">qr_code_scanner</span> Scan QR Code First';
 
-        // Poll for scan status every 2 seconds
+        // Set up recursive background polling to monitor transaction status
         const pollInterval = setInterval(async () => {
             try {
                 const token = localStorage.getItem('token');
@@ -112,8 +129,9 @@ const PaymentSystem = {
                 });
                 if (statusRes.ok) {
                     const statusData = await statusRes.json();
+                    // Activate the confirmation button if status transitions to 'scanned' or 'completed'
                     if (statusData.status === 'scanned' || statusData.status === 'completed') {
-                        clearInterval(pollInterval);
+                        clearInterval(pollInterval); // Stop polling immediately once valid state reached
                         btn.disabled = false;
                         btn.classList.remove('bg-slate-500', 'cursor-not-allowed', 'opacity-60');
                         btn.classList.add('bg-primary', 'hover:bg-primary/90');
@@ -121,35 +139,38 @@ const PaymentSystem = {
                     }
                 }
             } catch (e) {
-                // Ignore poll errors
+                // Ignore transient network errors during polling
             }
-        }, 2000);
+        }, 2000); // Polling frequency set to 2 seconds
 
-        // Clean up polling when modal is closed
+        // Event listener cleanup: stop polling if the user manually closes the modal
         const modal = document.getElementById('payment-system-modal');
         const closeBtn = modal.querySelector('button[onclick*="remove"]');
         if (closeBtn) {
-            const origOnclick = closeBtn.getAttribute('onclick');
-            closeBtn.setAttribute('onclick', '');
+            closeBtn.removeAttribute('onclick');
             closeBtn.addEventListener('click', () => {
                 clearInterval(pollInterval);
                 modal.remove();
+                if (onCancel) onCancel(paymentData);
             });
         }
 
+        // Final confirmation button click handler
         btn.addEventListener('click', async () => {
             if (btn.disabled) return;
             btn.disabled = true;
             btn.innerHTML = '<span class="animate-spin material-symbols-outlined">sync</span> Confirming...';
 
             try {
+                // Call the confirm() helper to finalize metadata on the server
                 const success = await this.confirm(paymentData.paymentId, paymentData.confirmationId);
                 if (success) {
                     clearInterval(pollInterval);
                     document.getElementById('payment-system-modal').remove();
-                    if (onConfirm) onConfirm(paymentData);
+                    if (onConfirm) onConfirm(paymentData); // trigger external success callback
                 }
             } catch (error) {
+                // Provide user feedback on failure and reset button state
                 alert('Confirmation failed: ' + error.message);
                 btn.disabled = false;
                 btn.innerHTML = '<span class="material-symbols-outlined">check_circle</span> I\'ve Completed Payment';
@@ -158,7 +179,7 @@ const PaymentSystem = {
     },
 
     /**
-     * Confirm a payment
+     * Finalize the payment state on the backend records.
      * @param {number} paymentId 
      * @param {string} confirmationId 
      * @returns {Promise<boolean>}
@@ -182,10 +203,13 @@ const PaymentSystem = {
 
             return true;
         } catch (error) {
+            // Surface errors to the caller for UI handling
             console.error('Payment confirmation error:', error);
             throw error;
         }
     }
 };
 
+// Expose the PaymentSystem globally for access across various platform pages
 window.PaymentSystem = PaymentSystem;
+

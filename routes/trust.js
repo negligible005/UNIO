@@ -3,9 +3,15 @@ const router = express.Router();
 const { pool } = require('../db');
 const { authenticateToken } = require('../middleware/authMiddleware');
 
-// Helper: check if rater is eligible to rate the ratee
+/**
+ * hasSharedExperience: Helper function to verify eligibility for rating.
+ * Users can only rate others if they have shared a transaction, chat, or friendship.
+ * @param {number} raterId - ID of the user giving the rating.
+ * @param {number} rateeId - ID of the user being rated.
+ * @returns {Promise<boolean>}
+ */
 async function hasSharedExperience(raterId, rateeId) {
-    // Check shared bookings (any listing they both booked)
+    // Check 1: Shared bookings (co-participants in the same listing)
     const sharedBooking = await pool.query(`
         SELECT 1 FROM bookings b1
         JOIN bookings b2 ON b1.listing_id = b2.listing_id
@@ -14,7 +20,7 @@ async function hasSharedExperience(raterId, rateeId) {
     `, [raterId, rateeId]);
     if (sharedBooking.rows.length > 0) return true;
 
-    // Check marketplace: buyer chatted with seller (or vice versa)
+    // Check 2: Marketplace interactions (buyer and seller chat history)
     const sharedMarket = await pool.query(`
         SELECT 1 FROM marketplace_chats
         WHERE (buyer_id = $1 AND seller_id = $2)
@@ -23,7 +29,7 @@ async function hasSharedExperience(raterId, rateeId) {
     `, [raterId, rateeId]);
     if (sharedMarket.rows.length > 0) return true;
 
-    // Check accepted friendship
+    // Check 3: Accepted peer friendship
     const areFriends = await pool.query(`
         SELECT 1 FROM friends
         WHERE ((user_id1 = $1 AND user_id2 = $2) OR (user_id1 = $2 AND user_id2 = $1))
@@ -33,25 +39,33 @@ async function hasSharedExperience(raterId, rateeId) {
     return areFriends.rows.length > 0;
 }
 
-// Rate (or Update) a User — UPSERT
+/**
+ * POST /api/trust/rate
+ * Upserts a trust score (rating) for a specific user.
+ * Includes eligibility checks to prevent spam or unauthorized ratings.
+ * @requires authenticateToken
+ */
 router.post('/rate', authenticateToken, async (req, res) => {
     try {
         const { rateeId, score, comment } = req.body;
         const raterId = req.user.id;
 
+        // Validation 1: Prevent self-rating to maintain trust integrity
         if (raterId === parseInt(rateeId)) {
             return res.status(400).json({ message: 'Cannot rate yourself' });
         }
+        // Validation 2: Ensure the score is within the 1-5 point decimal range
         if (!score || score < 1 || score > 5) {
             return res.status(400).json({ message: 'Score must be between 1 and 5' });
         }
 
+        // Verification: Check if the rater is authorized to rate this specific individual
         const eligible = await hasSharedExperience(raterId, parseInt(rateeId));
         if (!eligible) {
             return res.status(403).json({ message: 'You can only rate friends, split partners, or marketplace contacts' });
         }
 
-        // Try UPSERT — gracefully handle missing UNIQUE constraint
+        // Implementation Note: Uses an UPSERT pattern (Insert or Update on conflict)
         try {
             await pool.query(
                 `INSERT INTO trust_scores (rater_id, ratee_id, score, comment)
@@ -61,7 +75,7 @@ router.post('/rate', authenticateToken, async (req, res) => {
                 [raterId, parseInt(rateeId), score, comment || '']
             );
         } catch (upsertErr) {
-            // Fallback if UNIQUE constraint missing on old DB: DELETE then INSERT
+            // Manual fallback if the database lacks a unique constraint (legacy support)
             await pool.query(
                 `DELETE FROM trust_scores WHERE rater_id = $1 AND ratee_id = $2`,
                 [raterId, parseInt(rateeId)]
@@ -79,8 +93,11 @@ router.post('/rate', authenticateToken, async (req, res) => {
     }
 });
 
-
-// Get ratings I've given to others
+/**
+ * GET /api/trust/my-ratings
+ * Retrieves all ratings given by the currently authenticated user to others.
+ * @requires authenticateToken
+ */
 router.get('/my-ratings', authenticateToken, async (req, res) => {
     try {
         const raterId = req.user.id;
@@ -99,23 +116,11 @@ router.get('/my-ratings', authenticateToken, async (req, res) => {
     }
 });
 
-// Get a specific rating I gave to a user
-router.get('/my-rating/:rateeId', authenticateToken, async (req, res) => {
-    try {
-        const raterId = req.user.id;
-        const { rateeId } = req.params;
-        const result = await pool.query(
-            `SELECT * FROM trust_scores WHERE rater_id = $1 AND ratee_id = $2`,
-            [raterId, rateeId]
-        );
-        res.json(result.rows[0] || null);
-    } catch (err) {
-        console.error(err.message);
-        res.status(500).send('Server Error');
-    }
-});
-
-// Public: Get any user's average trust score + name
+/**
+ * GET /api/trust/user/:id
+ * Public endpoint to retrieve a user's calculated reputation summary.
+ * Aggregates all received trust scores into a single average.
+ */
 router.get('/user/:id', async (req, res) => {
     try {
         const { id } = req.params;
@@ -137,31 +142,17 @@ router.get('/user/:id', async (req, res) => {
     }
 });
 
-// Public: All users with their trust scores (for community page)
-router.get('/all-users', async (req, res) => {
-    try {
-        const result = await pool.query(
-            `SELECT u.id, u.name, u.email,
-                    COALESCE(AVG(ts.score), 0) as avg_score,
-                    COUNT(ts.id) as rating_count
-             FROM users u
-             LEFT JOIN trust_scores ts ON ts.ratee_id = u.id
-             GROUP BY u.id
-             ORDER BY avg_score DESC`
-        );
-        res.json(result.rows);
-    } catch (err) {
-        console.error(err.message);
-        res.status(500).send('Server Error');
-    }
-});
-
-// People I can rate (shared experience OR friends, not myself)
+/**
+ * GET /api/trust/rateable
+ * Identifies all users the authenticated user is currently eligible to rate.
+ * Aggregates prospective ratees from bookings, marketplace activities, and friends.
+ * @requires authenticateToken
+ */
 router.get('/rateable', authenticateToken, async (req, res) => {
     try {
         const userId = req.user.id;
 
-        // People shared bookings with
+        // Query segments identify eligible peers through three distinct relationship channels
         const bookingPartners = await pool.query(`
             SELECT DISTINCT u.id, u.name, u.email,
                             COALESCE(AVG(ts2.score), 0) as avg_score,
@@ -177,7 +168,6 @@ router.get('/rateable', authenticateToken, async (req, res) => {
             GROUP BY u.id, ts_mine.id
         `, [userId]);
 
-        // People shared marketplace chats with
         const marketPartners = await pool.query(`
             SELECT DISTINCT u.id, u.name, u.email,
                             COALESCE(AVG(ts2.score), 0) as avg_score,
@@ -192,7 +182,6 @@ router.get('/rateable', authenticateToken, async (req, res) => {
             GROUP BY u.id, ts_mine.id
         `, [userId]);
 
-        // Accepted friends (can also rate each other)
         const friendPartners = await pool.query(`
             SELECT DISTINCT u.id, u.name, u.email,
                             COALESCE(AVG(ts2.score), 0) as avg_score,
@@ -207,7 +196,7 @@ router.get('/rateable', authenticateToken, async (req, res) => {
             GROUP BY u.id, ts_mine.id
         `, [userId]);
 
-        // Merge and deduplicate
+        // Merge results into a deduplicated collection for the frontend
         const seen = new Set();
         const merged = [];
         for (const row of [...bookingPartners.rows, ...marketPartners.rows, ...friendPartners.rows]) {
@@ -225,4 +214,3 @@ router.get('/rateable', authenticateToken, async (req, res) => {
 });
 
 module.exports = router;
-

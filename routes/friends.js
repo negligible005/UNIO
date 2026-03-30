@@ -3,26 +3,34 @@ const router = express.Router();
 const { pool } = require('../db');
 const { authenticateToken } = require('../middleware/authMiddleware');
 
-// Send Friend Request
+/**
+ * POST /api/friends/request
+ * Initiates a new friend request between the authenticated user and a target friend.
+ * Uses numerical sorting of user IDs to maintain a unique relationship constraint pattern (user_id1 < user_id2).
+ * @requires authenticateToken
+ */
 router.post('/request', authenticateToken, async (req, res) => {
     try {
         const { friendId } = req.body;
         const userId = req.user.id;
 
+        // Prevent users from sending friend requests to themselves
         if (userId === parseInt(friendId)) return res.status(400).json({ message: "Cannot friend yourself" });
 
+        // Sort IDs to ensure consistency with the bidirectional relationship model in the DB
         const [id1, id2] = userId < parseInt(friendId) ? [userId, parseInt(friendId)] : [parseInt(friendId), userId];
 
+        // Insert a 'pending' relationship record; ignore if a request already exists
         await pool.query(
             "INSERT INTO friends (user_id1, user_id2, status) VALUES ($1, $2, 'pending') ON CONFLICT DO NOTHING",
             [id1, id2]
         );
 
-        // Look up requester's name
+        // Retrieve the requester's name to personalize the notification
         const userRow = await pool.query("SELECT name FROM users WHERE id = $1", [userId]);
         const requesterName = userRow.rows[0]?.name || `User ${userId}`;
 
-        // Create notification for the recipient — include requester ID at end for parsing
+        // Generate a notification for the recipient with the requester's identification for client-side parsing
         await pool.query(
             "INSERT INTO notifications (user_id, type, content) VALUES ($1, 'friend_request', $2)",
             [parseInt(friendId), `${requesterName} wants to be your friend. [ID: ${userId}]`]
@@ -35,18 +43,25 @@ router.post('/request', authenticateToken, async (req, res) => {
     }
 });
 
-// Accept Friend Request
+/**
+ * POST /api/friends/accept
+ * Transitions a 'pending' friend request to 'accepted' status.
+ * @requires authenticateToken
+ */
 router.post('/accept', authenticateToken, async (req, res) => {
     try {
         const { requesterId } = req.body;
         const userId = req.user.id;
+        // Normalize IDs to match the database constraint pattern (user_id1 < user_id2)
         const [id1, id2] = userId < requesterId ? [userId, requesterId] : [requesterId, userId];
 
+        // Update the relationship status to 'accepted' if the record exists
         const result = await pool.query(
             "UPDATE friends SET status = 'accepted' WHERE user_id1 = $1 AND user_id2 = $2 RETURNING *",
             [id1, id2]
         );
 
+        // Return error if no matching pending request was found
         if (result.rows.length === 0) return res.status(404).json({ message: "Request not found" });
 
         res.json({ message: "Friend request accepted" });
@@ -56,10 +71,16 @@ router.post('/accept', authenticateToken, async (req, res) => {
     }
 });
 
-// Get My Friends
+/**
+ * GET /api/friends/my-friends
+ * Retrieves the list of all accepted friends for the authenticated user.
+ * Includes each friend's average trust score for quick assessment.
+ * @requires authenticateToken
+ */
 router.get('/my-friends', authenticateToken, async (req, res) => {
     try {
         const userId = req.user.id;
+        // Joint query across users, friends, and trust_scores to build a comprehensive profile
         const result = await pool.query(`
             SELECT u.id, u.name, u.email, COALESCE(AVG(ts.score), 0) as trust_score
             FROM users u
@@ -75,11 +96,16 @@ router.get('/my-friends', authenticateToken, async (req, res) => {
     }
 });
 
-// Get Recommendations (Users I've split with)
+/**
+ * GET /api/friends/recommendations
+ * Suggests potential friends based on shared logistics bookings.
+ * Only recommends users who are not already currently friends.
+ * @requires authenticateToken
+ */
 router.get('/recommendations', authenticateToken, async (req, res) => {
     try {
         const userId = req.user.id;
-        // Find users who are not friends yet but shared a listing
+        // Identify users who have booked the same listings as the current user
         const result = await pool.query(`
             SELECT DISTINCT u.id, u.name, u.email
             FROM users u
@@ -93,6 +119,112 @@ router.get('/recommendations', authenticateToken, async (req, res) => {
             )
         `, [userId]);
         res.json(result.rows);
+    } catch (err) {
+        console.error(err.message);
+        res.status(500).send("Server Error");
+    }
+});
+
+/* --- CHAT SYSTEM INTEGRATION --- */
+
+/**
+ * POST /api/friends/chats
+ * Get or Create a dedicated chat session between two friends.
+ * @requires authenticateToken
+ */
+router.post('/chats', authenticateToken, async (req, res) => {
+    try {
+        const { friend_id } = req.body;
+        const userId = req.user.id;
+
+        if (userId === parseInt(friend_id)) return res.status(400).json({ message: "Cannot chat with yourself" });
+
+        // Verify that the relationship is explicitly marked as 'accepted'
+        const [id1, id2] = userId < parseInt(friend_id) ? [userId, parseInt(friend_id)] : [parseInt(friend_id), userId];
+        const friendCheck = await pool.query(
+            "SELECT * FROM friends WHERE user_id1 = $1 AND user_id2 = $2 AND status = 'accepted'",
+            [id1, id2]
+        );
+
+        if (friendCheck.rows.length === 0) return res.status(403).json({ message: "You can only chat with accepted friends" });
+
+        // Uses ON CONFLICT to act as a 'get or create' pattern during initialization
+        const chat = await pool.query(
+            `INSERT INTO friend_chats (user_id1, user_id2) 
+             VALUES ($1, $2)
+             ON CONFLICT (user_id1, user_id2) DO UPDATE SET user_id1 = EXCLUDED.user_id1
+             RETURNING *`,
+            [id1, id2]
+        );
+
+        res.json(chat.rows[0]);
+    } catch (err) {
+        console.error(err.message);
+        res.status(500).send("Server Error");
+    }
+});
+
+/**
+ * GET /api/friends/chats/:id/messages
+ * Retrieves the chronological message history for a specific friend chat.
+ * Includes participation verification for data security.
+ * @requires authenticateToken
+ */
+router.get('/chats/:id/messages', authenticateToken, async (req, res) => {
+    try {
+        const { id } = req.params;
+        const userId = req.user.id;
+
+        // Verify the user is one of the two participants in the targeted chat
+        const accessCheck = await pool.query(
+            "SELECT * FROM friend_chats WHERE id = $1 AND (user_id1 = $2 OR user_id2 = $2)",
+            [id, userId]
+        );
+
+        if (accessCheck.rows.length === 0) return res.status(403).json({ message: "Not authorized to view this chat" });
+
+        // Retrieve messages sorted by creation time
+        const messages = await pool.query(
+            `SELECT m.*, u.name as sender_name 
+             FROM friend_messages m
+             JOIN users u ON m.sender_id = u.id
+             WHERE m.chat_id = $1 
+             ORDER BY m.created_at ASC`,
+            [id]
+        );
+
+        res.json(messages.rows);
+    } catch (err) {
+        console.error(err.message);
+        res.status(500).send("Server Error");
+    }
+});
+
+/**
+ * POST /api/friends/messages
+ * Sends a new message within an established friend chat.
+ * @requires authenticateToken
+ */
+router.post('/messages', authenticateToken, async (req, res) => {
+    try {
+        const { chat_id, content } = req.body;
+        const sender_id = req.user.id;
+
+        // Verify the sender is an authorized participant of the chat
+        const accessCheck = await pool.query(
+            "SELECT * FROM friend_chats WHERE id = $1 AND (user_id1 = $2 OR user_id2 = $2)",
+            [chat_id, sender_id]
+        );
+
+        if (accessCheck.rows.length === 0) return res.status(403).json({ message: "Not authorized to send to this chat" });
+
+        // Insert the message and return it for instant UI updates
+        const message = await pool.query(
+            "INSERT INTO friend_messages (chat_id, sender_id, content) VALUES ($1, $2, $3) RETURNING *",
+            [chat_id, sender_id, content]
+        );
+
+        res.json(message.rows[0]);
     } catch (err) {
         console.error(err.message);
         res.status(500).send("Server Error");

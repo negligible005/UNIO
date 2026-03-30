@@ -1,3 +1,4 @@
+/* Global Reset and Typography: Ensures consistent look across browsers */
 * {
   margin: 0;
   padding: 0;
@@ -11,12 +12,14 @@ body {
 }
 
 /* MAIN LAYOUT */
+/* Main Auth Layout: Full-height container for authentication pages */
 .auth-container {
   display: flex;
   height: 100vh;
 }
 
 /* LEFT PANEL */
+/* Left Panel: Branding and visual background for auth pages */
 .auth-left {
   flex: 1.2;
   position: relative;
@@ -71,6 +74,7 @@ body {
 }
 
 /* RIGHT PANEL */
+/* Right Panel: Clean background for the actual login/signup forms */
 .auth-right {
   flex: 1;
   background: #f8fafc;
@@ -80,6 +84,7 @@ body {
 }
 
 /* LOGIN CARD */
+/* Login Card: The central container for user input fields */
 .login-card {
   width: 100%;
   max-width: 420px;
@@ -161,6 +166,7 @@ body {
 }
 
 /* RESPONSIVE */
+/* Responsive Adjustments: Stacking panels vertically on smaller screens */
 @media (max-width: 900px) {
   .auth-container {
     flex-direction: column;
@@ -180,6 +186,7 @@ body {
 }
 
 /* DARK MODE OVERRIDES */
+/* Dark Mode Support: Color overrides for dark theme activation */
 html.dark body {
   background: #0f172a;
 }

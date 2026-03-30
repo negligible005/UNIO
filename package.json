@@ -5,8 +5,9 @@
   "main": "consumer.js",
   "scripts": {
     "start": "concurrently \"node server.js\" \"node admin-server.js\"",
-    "admin": "node admin-server.js",
-    "dev": "concurrently \"node server.js\" \"node admin-server.js\""
+    "admin": "nodemon admin-server.js",
+    "dev": "concurrently \"nodemon server.js\" \"nodemon admin-server.js\"",
+    "test": "jest --detectOpenHandles"
   },
   "keywords": [],
   "author": "",
@@ -25,6 +26,8 @@
     "socket.io-client": "^4.8.3"
   },
   "devDependencies": {
-    "concurrently": "^9.2.1"
+    "concurrently": "^9.2.1",
+    "jest": "^30.3.0",
+    "supertest": "^7.2.2"
   }
 }

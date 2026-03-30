@@ -3,14 +3,21 @@ const router = express.Router();
 const { pool } = require('../db');
 const { authenticateToken } = require('../middleware/authMiddleware');
 
-// Helper to format bookings for chat options
+/**
+ * formatBookingOptions: Utility to transform database booking records into interactive chat buttons.
+ * Adds a 'Main Menu' option as a fallback navigation item.
+ * @param {Array} bookings - Collection of booking objects from the database.
+ * @returns {Array} Formatted options array for the chatbot UI.
+ */
 function formatBookingOptions(bookings) {
+    // If no active bookings are found, provide a single navigation option
     if (bookings.length === 0) {
         return [
             { label: "Check again later", next: "main_menu" }
         ];
     }
     
+    // Map each booking to a labeled option with associated metadata (order_id)
     return bookings.map(b => ({
         label: `Order #${b.id} - ${b.type.replace(/_/g, ' ')}`,
         next: "order_details",
@@ -20,6 +27,13 @@ function formatBookingOptions(bookings) {
     ]);
 }
 
+/**
+ * POST /api/chatbot/interact
+ * Core state-machine logic for the support chatbot.
+ * Processes the 'node_id' to determine the next message and set of interactive options.
+ * Dynamically queries the database for user-specific data (orders, trust scores, earnings).
+ * @requires authenticateToken
+ */
 router.post('/interact', authenticateToken, async (req, res) => {
     try {
         const { node_id, context = {} } = req.body;
@@ -27,11 +41,12 @@ router.post('/interact', authenticateToken, async (req, res) => {
         const role = req.user.role || 'consumer';
 
         // -----------------------------------------------------
-        // STATE MACHINE LOGIC
+        // STATE MACHINE NODES
         // -----------------------------------------------------
         
-        // 1. MAIN MENU
+        // 1. MAIN MENU: Entry point triggered on chat initialization or reset
         if (node_id === 'main_menu') {
+            // Context-aware menu based on user role (Provider vs. Consumer)
             if (role === 'provider') {
                 return res.json({
                     message: "Welcome to Provider Support. How can I assist you today?",
@@ -56,9 +71,9 @@ router.post('/interact', authenticateToken, async (req, res) => {
             }
         }
 
-        // 2. TRACK ORDER FLOW (Consumer only)
+        // 2. TRACK ORDER FLOW: Consumer-specific order status lookup
         if (node_id === 'track_order') {
-            // Fetch recent active orders
+            // Fetch the 3 most recent non-cancelled bookings for the user
             const recentOrders = await pool.query(
                 `SELECT b.id, l.type, b.status 
                  FROM bookings b 
@@ -74,8 +89,8 @@ router.post('/interact', authenticateToken, async (req, res) => {
             });
         }
 
+        // 2b. ORDER DETAILS: Displays specific status and ETA for a selected booking
         if (node_id === 'order_details' && context.order_id) {
-            // Fetch specific order details
             const orderRes = await pool.query(
                 `SELECT status, eta, updated_at FROM bookings WHERE id = $1 AND user_id = $2`,
                 [context.order_id, userId]
@@ -103,7 +118,7 @@ router.post('/interact', authenticateToken, async (req, res) => {
             });
         }
 
-        // 3. REPORT ISSUE FLOW
+        // 3. REPORT ISSUE FLOW: Tiered issue categorization and escalation
         if (node_id === 'report_issue') {
             return res.json({
                 message: "What kind of issue are you experiencing?",
@@ -116,6 +131,7 @@ router.post('/interact', authenticateToken, async (req, res) => {
             });
         }
 
+        // 3b. ORDER SPECIFIC ISSUE: Categorization for specific transaction failures
         if (node_id === 'order_issue') {
             return res.json({
                 message: `I'm sorry you are having trouble with Order #${context.order_id || 'Unknown'}. What went wrong?`,
@@ -128,8 +144,9 @@ router.post('/interact', authenticateToken, async (req, res) => {
             });
         }
 
+        // 3c. ISSUE RESOLUTION: Generic endpoint for creating a support ticket/note
         if (node_id === 'issue_resolution') {
-            // Escalate to human support
+            // Final state: Inform user that a ticket has been created (simulated escalation)
             return res.json({
                 message: "I've noted the issue. A support agent will review this and get back to you within 24 hours.",
                 options: [
@@ -139,7 +156,7 @@ router.post('/interact', authenticateToken, async (req, res) => {
             });
         }
 
-        // NEW FLOW: CHECK TRUST SCORE
+        // 4. CHECK TRUST SCORE FLOW: Reputation lookup and explanation
         if (node_id === 'check_trust') {
             const trustQuery = await pool.query(
                 `SELECT COALESCE(AVG(score), 0) as avg_score, COUNT(*) as total_reviews 
@@ -150,6 +167,7 @@ router.post('/interact', authenticateToken, async (req, res) => {
             const avgScore = parseFloat(stats.avg_score).toFixed(1);
             
             let message = '';
+            // Tailor message based on whether the user has received any ratings
             if (stats.total_reviews == 0) {
                 message = "You don't have any trust score ratings yet. Participate in the UNIO community or complete splits to get rated!";
             } else {
@@ -165,7 +183,7 @@ router.post('/interact', authenticateToken, async (req, res) => {
             });
         }
 
-        // 4. PAYMENT HELP FLOW
+        // 5. PAYMENT HELP FLOW: Specialized support for transactions
         if (node_id === 'payment_help') {
             return res.json({
                 message: "Here are some common payment topics. What do you need help with?",
@@ -178,6 +196,7 @@ router.post('/interact', authenticateToken, async (req, res) => {
             });
         }
 
+        // 5b. CHECK PAYMENTS: Displays the user's most recent payment transactions
         if (node_id === 'check_payments') {
             const paymentsQuery = await pool.query(
                 `SELECT payment_amount, status, created_at FROM dummy_payments 
@@ -189,6 +208,7 @@ router.post('/interact', authenticateToken, async (req, res) => {
                 message = "You don't have any recent payments on record.";
             } else {
                 message = "Here are your 3 most recent payment transactions:\n\n";
+                // Aggregate payment history into a readable list
                 paymentsQuery.rows.forEach(p => {
                     message += `- **₹${p.payment_amount}** (${p.status}) on ${new Date(p.created_at).toLocaleDateString()}\n`;
                 });
@@ -203,8 +223,9 @@ router.post('/interact', authenticateToken, async (req, res) => {
             });
         }
 
-        // 5. FAQ / MISCELLANEOUS
+        // 6. FAQ HANDLER: Static responses for recurring community questions
         if (node_id === 'faq_response') {
+            // Branching logic based on the 'topic' stored in context
             if (context.topic === 'wallet') {
                 return res.json({
                     message: "UNIO wallet automatically applies your balances toward your next booked split. You can top it up via standard UPI or credit card.",
@@ -222,6 +243,7 @@ router.post('/interact', authenticateToken, async (req, res) => {
             }
         }
 
+        // 7. HUMAN ESCALATION & MISCELLANEOUS
         if (node_id === 'other_queries' || node_id === 'talk_human') {
             return res.json({
                 message: "If you need customized help, our human support team is available from 9 AM to 9 PM IST.",
@@ -232,7 +254,7 @@ router.post('/interact', authenticateToken, async (req, res) => {
             });
         }
         
-        // PROVIDER SPECIFIC OPTIONS
+        // 8. PROVIDER SPECIFIC OPTIONS: Internal management stats for service providers
         if (node_id === 'provider_listings') {
             const listingsQuery = await pool.query(`SELECT COUNT(*) FROM listings WHERE provider_id = $1`, [userId]);
             const count = listingsQuery.rows[0].count;
@@ -245,6 +267,7 @@ router.post('/interact', authenticateToken, async (req, res) => {
             });
         }
 
+        // 8b. PROVIDER EARNINGS: Financial summary for providers
         if (node_id === 'provider_earnings') {
             const earningQuery = await pool.query(
                 `SELECT COALESCE(SUM(total_price), 0) as total FROM bookings b JOIN listings l ON b.listing_id = l.id WHERE l.provider_id = $1 AND b.payment_status = 'paid'`, 
@@ -259,6 +282,7 @@ router.post('/interact', authenticateToken, async (req, res) => {
             });
         }
 
+        // 9. TERMINATION NODE: Ends the chat session
         if (node_id === 'close_chat') {
             return res.json({
                 message: "Goodbye! Have a great day ahead! 👋",
@@ -266,7 +290,7 @@ router.post('/interact', authenticateToken, async (req, res) => {
             });
         }
 
-        // 6. DEFAULT FALLBACK
+        // 10. ERROR FALLBACK: Recovery path for undefined nodes
         return res.json({
             message: "I'm sorry, I encountered an unknown step. Let's start over.",
             options: [
@@ -275,6 +299,7 @@ router.post('/interact', authenticateToken, async (req, res) => {
         });
 
     } catch (err) {
+        // Log deep errors for administrative debugging
         console.error("Chatbot interact error:", err);
         res.status(500).json({ message: "Internal server error" });
     }

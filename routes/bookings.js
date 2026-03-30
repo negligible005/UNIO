@@ -3,12 +3,20 @@ const router = express.Router();
 const { pool } = require('../db');
 const { authenticateToken } = require('../middleware/authMiddleware');
 
-// Helper to parse capacity string (e.g. "500kg" -> { value: 500, unit: "kg" })
+/**
+ * parseCapacity: Utility helper to convert a human-readable string into value/unit.
+ * @param {string} capString - e.g. "500kg" or "12 slots".
+ * @returns {Object} { value: number, unit: string }
+ */
 function parseCapacity(capString) {
+    // Regular expression to extract the numeric part and the measurement unit
     const match = capString.trim().match(/^([\d.]+)\s*([a-zA-Z]+)?$/);
+    // Return zero if the string format is invalid
     if (!match) return { value: 0, unit: '' };
     return {
+        // Parse the numeric capture group into a float
         value: parseFloat(match[1]),
+        // Store the unit in lowercase and trim whitespace
         unit: (match[2] || '').toLowerCase().trim()
     };
 }
@@ -44,7 +52,7 @@ router.get('/all-joined', authenticateToken, async (req, res) => {
             SELECT 
                 'booking' as entry_type,
                 b.id, b.status, b.payment_status, b.quantity, b.total_price, 
-                b.cancellation_status, b.created_at,
+                b.cancellation_status, b.created_at, b.details,
                 l.type, l.location, l.date,
                 dp.confirmation_id
             FROM bookings b
@@ -60,7 +68,7 @@ router.get('/all-joined', authenticateToken, async (req, res) => {
                 sm.split_id as id, s.status, 
                 (CASE WHEN dp.id IS NOT NULL THEN 'paid' ELSE 'unpaid' END) as payment_status,
                 1 as quantity, s.price_per_person as total_price,
-                NULL as cancellation_status, sm.joined_at as created_at,
+                NULL as cancellation_status, sm.joined_at as created_at, NULL as details,
                 m.type, 'Marketplace' as location, m.title as date,
                 dp.confirmation_id
             FROM split_members sm
@@ -85,16 +93,23 @@ router.get('/all-joined', authenticateToken, async (req, res) => {
     }
 });
 
-// Create Booking (Transactional)
+/**
+ * POST /api/bookings/
+ * Creates a new booking using a PostgreSQL Transaction (BEGIN/COMMIT).
+ * Handles capacity deduction and unit conversion automatically.
+ */
 router.post('/', authenticateToken, async (req, res) => {
+    // Acquire a client from the pool to handle the single transaction session
     const client = await pool.connect();
     try {
-        await client.query('BEGIN'); // Start Transaction
+        // Explicitly start the transaction block
+        await client.query('BEGIN'); 
 
-        const { listing_id, quantity = 1 } = req.body;
+        // Extract booking requirements from the post body
+        const { listing_id, quantity = 1, details = {} } = req.body;
         const userId = req.user.id;
 
-        // 1. Fetch Listing
+        // 1. Fetch the targeted listing and lock the row for update to prevent race conditions
         const listingRes = await client.query('SELECT * FROM listings WHERE id = $1 FOR UPDATE', [listing_id]);
         if (listingRes.rows.length === 0) {
             await client.query('ROLLBACK');
@@ -125,9 +140,9 @@ router.post('/', authenticateToken, async (req, res) => {
 
         // 5. Create Booking
         const newBooking = await client.query(
-            `INSERT INTO bookings (user_id, listing_id, status, payment_status, quantity, total_price) 
-             VALUES ($1, $2, 'confirmed', 'unpaid', $3, $4) RETURNING *`,
-            [userId, listing_id, quantity, totalPrice]
+            `INSERT INTO bookings (user_id, listing_id, status, payment_status, quantity, total_price, details) 
+             VALUES ($1, $2, 'confirmed', 'unpaid', $3, $4, $5) RETURNING *`,
+            [userId, listing_id, quantity, totalPrice, details]
         );
 
         // 6. Check Payment Required Flag
